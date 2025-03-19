@@ -3,3 +3,6 @@ __pycache__
 
 # Ignore test images
 images
+
+# Ignore logs
+logs
