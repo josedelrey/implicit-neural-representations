@@ -1,21 +1,15 @@
-import os
-import datetime
-import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.optim as optim
-import torch.nn as nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
 
-from dataset import ImageFitting
+from dataset import ImageDataset
 from models import Siren
-from loss import mse_to_psnr  # assuming mse_to_psnr is defined in loss.py
+from loss import mse_to_psnr
+
 
 def main():
-    seed = 42  # or any integer of your choice
+    seed = 42
 
     # NumPy
     np.random.seed(seed)
@@ -24,24 +18,28 @@ def main():
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+    # Parameters
+    sidelength = 256
+    is_rgb = True
+    channels = 3 if is_rgb else 1
         
-    cameraman = ImageFitting(256)
-    dataloader = DataLoader(cameraman, batch_size=1, pin_memory=True, num_workers=0)
+    image_dataset = ImageDataset(sidelength, path='images/test2.jpg', channels=channels)
+    dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
-    img_siren = Siren(in_features=2, out_features=1, hidden_features=256, 
-                    hidden_layers=3, outermost_linear=True)
-    img_siren.cuda()
+    model = Siren(in_features=2, out_features=channels, hidden_features=256, 
+                      hidden_layers=3, outermost_linear=True).cuda()
 
-    total_steps = 500 # Since the whole image is our dataset, this just means 500 gradient descent steps.
+    total_steps = 500
     steps_til_summary = 10
 
-    optim = torch.optim.Adam(lr=1e-4, params=img_siren.parameters())
+    optim = torch.optim.Adam(lr=1e-4, params=model.parameters())
 
     model_input, ground_truth = next(iter(dataloader))
     model_input, ground_truth = model_input.cuda(), ground_truth.cuda()
 
     for step in range(total_steps):
-        model_output, coords = img_siren(model_input)    
+        model_output, coords = model(model_input)    
         loss = ((model_output - ground_truth)**2).mean()
         
         if not step % steps_til_summary:
@@ -52,26 +50,40 @@ def main():
         optim.step()
 
     # --- Rendering the final image ---
-    img_siren.eval()
+    # --- Rendering the final image ---
+    model.eval()
     chunk_size = 4096  # Use chunks to avoid memory overflow
     with torch.no_grad():
-        full_uv = cameraman.coords.cuda()  # Use the same coordinate grid from the dataset
+        full_uv = image_dataset.coords.cuda()  # Use the same coordinate grid from the dataset
         preds_list = []
         for i in range(0, full_uv.shape[0], chunk_size):
             uv_chunk = full_uv[i:i+chunk_size]
-            preds_chunk, _ = img_siren(uv_chunk)
+            preds_chunk, _ = model(uv_chunk)
             preds_list.append(preds_chunk)
         preds = torch.cat(preds_list, dim=0)
         preds = preds.cpu().numpy()
 
-    # Reshape predictions to image dimensions (since it's grayscale, shape will be H x W)
-    final_img = preds.reshape(256, 256)
+    # Retrieve image dimensions from the dataset
+    height, width = image_dataset.height, image_dataset.width
 
-    plt.figure(figsize=(6, 6))
-    plt.imshow(final_img, cmap='gray')
-    plt.title("Reconstructed Image by SIREN")
+    if channels == 3:
+        # For RGB images, reshape to (H, W, 3) and adjust pixel range to [0,1]
+        final_img = preds.reshape(height, width, 3)
+        final_img = (final_img + 1) / 2  # assuming the network output is in [-1, 1]
+        plt.figure(figsize=(6, 6))
+        plt.imshow(final_img)
+        plt.title("Reconstructed RGB Image by SIREN")
+    else:
+        # For grayscale, reshape to (H, W) and use a colormap
+        final_img = preds.reshape(height, width)
+        final_img = (final_img + 1) / 2  # adjust pixel range to [0,1] if needed
+        plt.figure(figsize=(6, 6))
+        plt.imshow(final_img, cmap='gray')
+        plt.title("Reconstructed Grayscale Image by SIREN")
+
     plt.axis('off')
     plt.show()
+
 
 if __name__ == '__main__':
     main()
