@@ -9,12 +9,9 @@ from loss import mse_to_psnr
 
 
 def main():
+    # Set seed for reproducibility
     seed = 42
-
-    # NumPy
     np.random.seed(seed)
-
-    # PyTorch CPU and GPU
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
@@ -23,38 +20,39 @@ def main():
     sidelength = 256
     is_rgb = True
     channels = 3 if is_rgb else 1
-        
+    total_steps = 500
+    log_interval = 10
+    chunk_size = 4096
+
+    # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/test2.jpg', channels=channels)
     dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
+    # Initialize model
     model = Siren(in_features=2, out_features=channels, hidden_features=256, 
                       hidden_layers=3, outermost_linear=True).cuda()
 
-    total_steps = 500
-    steps_til_summary = 10
-
+    # Initialize optimizer
     optim = torch.optim.Adam(lr=1e-4, params=model.parameters())
 
+    # Training loop
     model_input, ground_truth = next(iter(dataloader))
     model_input, ground_truth = model_input.cuda(), ground_truth.cuda()
-
     for step in range(total_steps):
-        model_output, coords = model(model_input)    
+        model_output = model(model_input)    
         loss = ((model_output - ground_truth)**2).mean()
         
-        if not step % steps_til_summary:
-            print("Step %d, Total loss %0.6f" % (step, loss))
+        if not step % log_interval:
+            print("Step %d, Total loss: %0.6f, PSNR: %0.6f" % (step, loss, mse_to_psnr(loss)))
 
         optim.zero_grad()
         loss.backward()
         optim.step()
 
-    # --- Rendering the final image ---
-    # --- Rendering the final image ---
+    # Evaluate the model
     model.eval()
-    chunk_size = 4096  # Use chunks to avoid memory overflow
     with torch.no_grad():
-        full_uv = image_dataset.coords.cuda()  # Use the same coordinate grid from the dataset
+        full_uv = image_dataset.coords.cuda()
         preds_list = []
         for i in range(0, full_uv.shape[0], chunk_size):
             uv_chunk = full_uv[i:i+chunk_size]
@@ -67,16 +65,14 @@ def main():
     height, width = image_dataset.height, image_dataset.width
 
     if channels == 3:
-        # For RGB images, reshape to (H, W, 3) and adjust pixel range to [0,1]
         final_img = preds.reshape(height, width, 3)
-        final_img = (final_img + 1) / 2  # assuming the network output is in [-1, 1]
+        final_img = (final_img + 1) / 2
         plt.figure(figsize=(6, 6))
         plt.imshow(final_img)
         plt.title("Reconstructed RGB Image by SIREN")
     else:
-        # For grayscale, reshape to (H, W) and use a colormap
         final_img = preds.reshape(height, width)
-        final_img = (final_img + 1) / 2  # adjust pixel range to [0,1] if needed
+        final_img = (final_img + 1) / 2
         plt.figure(figsize=(6, 6))
         plt.imshow(final_img, cmap='gray')
         plt.title("Reconstructed Grayscale Image by SIREN")

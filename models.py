@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
+from einops import rearrange
 
 
 class SineLayer(nn.Module):
@@ -103,3 +104,57 @@ class Siren(nn.Module):
             activation_count += 1
 
         return activations
+
+
+class GaborLayer(nn.Module):
+    def __init__(self, in_features, out_features, weight_scale, alpha):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        self.mu = nn.Parameter(2*torch.rand(1, out_features, in_features)-1)
+        self.gamma = nn.Parameter(
+            torch.distributions.gamma.Gamma(alpha, 1.0).sample((out_features,)))
+        self.linear.weight.data *= weight_scale*self.gamma[:, None]**0.5
+        self.linear.bias.data.uniform_(-np.pi, np.pi)
+
+    def forward(self, x):
+        D = torch.norm(rearrange(x, 'b d -> b 1 d')-self.mu, dim=-1)**2
+        return torch.sin(self.linear(x)) * torch.exp(-0.5*D*self.gamma[None])
+
+
+class GaborNet(nn.Module):
+    def __init__(
+        self,
+        in_size=2,
+        hidden_size=256,
+        out_size=3,
+        n_layers=4,
+        input_scale=256.0,
+        alpha=6.0):
+        super().__init__()
+
+        self.linear = nn.ModuleList(
+            [nn.Linear(hidden_size, hidden_size) for _ in range(n_layers)]
+        )
+        self.output_linear = \
+            nn.Sequential(nn.Linear(hidden_size, out_size),
+                          nn.Sigmoid())
+
+        self.filters = nn.ModuleList(
+            [
+                GaborLayer(
+                    in_size,
+                    hidden_size,
+                    input_scale / np.sqrt(n_layers + 1),
+                    alpha / (n_layers + 1)
+                )
+                for _ in range(n_layers + 1)
+            ]
+        )
+
+    def forward(self, x):
+        out = self.filters[0](x)
+        for i in range(1, len(self.filters)):
+            out = self.filters[i](x) * self.linear[i-1](out)
+        out = self.output_linear(out)
+
+        return out
