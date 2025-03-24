@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import Siren
+from models import Siren, GaborNet
 from loss import mse_to_psnr
 
 
@@ -20,30 +20,39 @@ def main():
     sidelength = 256
     is_rgb = True
     channels = 3 if is_rgb else 1
-    total_steps = 500
+    total_steps = 2500
     log_interval = 10
     chunk_size = 4096
+    model_type = 'gabornet'
 
     # Load the image dataset
-    image_dataset = ImageDataset(sidelength, path='images/test2.jpg', channels=channels)
+    image_dataset = ImageDataset(sidelength, path='images/test.jpg', channels=channels)
     dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
+    # Retrieve image dimensions from the dataset
+    height, width = image_dataset.height, image_dataset.width
+
     # Initialize model
-    model = Siren(in_features=2, out_features=channels, hidden_features=256, 
-                      hidden_layers=3, outermost_linear=True).cuda()
+    if model_type == 'siren':
+        model = Siren(in_features=2, out_features=channels, hidden_features=256, 
+                        hidden_layers=3, outermost_linear=True).cuda()
+    elif model_type == 'gabornet':
+        model = GaborNet(in_features=2, out_features=channels, hidden_features=256, 
+                        hidden_layers=4, input_scale=max([width, height])).cuda()
 
     # Initialize optimizer
-    optim = torch.optim.Adam(lr=1e-4, params=model.parameters())
+    optim = torch.optim.Adam(lr=1e-2, params=model.parameters())
 
     # Training loop
     model_input, ground_truth = next(iter(dataloader))
     model_input, ground_truth = model_input.cuda(), ground_truth.cuda()
     for step in range(total_steps):
+        model_input = model_input.squeeze(0)
         model_output = model(model_input)    
         loss = ((model_output - ground_truth)**2).mean()
         
         if not step % log_interval:
-            print("Step %d, Total loss: %0.6f, PSNR: %0.6f" % (step, loss, mse_to_psnr(loss)))
+            print("Step %d, Total loss: %0.6f, PSNR: %0.6f" % (step, loss, mse_to_psnr(loss.cpu().item())))
 
         optim.zero_grad()
         loss.backward()
@@ -56,13 +65,10 @@ def main():
         preds_list = []
         for i in range(0, full_uv.shape[0], chunk_size):
             uv_chunk = full_uv[i:i+chunk_size]
-            preds_chunk, _ = model(uv_chunk)
+            preds_chunk = model(uv_chunk)
             preds_list.append(preds_chunk)
         preds = torch.cat(preds_list, dim=0)
         preds = preds.cpu().numpy()
-
-    # Retrieve image dimensions from the dataset
-    height, width = image_dataset.height, image_dataset.width
 
     if channels == 3:
         final_img = preds.reshape(height, width, 3)
