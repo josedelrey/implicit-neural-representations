@@ -20,7 +20,7 @@ def main():
     sidelength = 256
     is_rgb = True
     channels = 3 if is_rgb else 1
-    total_steps = 2500
+    total_steps = 500
     log_interval = 10
     chunk_size = 4096
     model_type = 'gabornet'
@@ -34,19 +34,19 @@ def main():
 
     # Initialize model
     if model_type == 'siren':
-        model = Siren(in_features=2, out_features=channels, hidden_features=256, 
-                        hidden_layers=3, outermost_linear=True).cuda()
+        model = Siren(out_features=channels, hidden_layers=4, outermost_linear=True).cuda()
+        learning_rate = 1e-4
     elif model_type == 'gabornet':
-        model = GaborNet(in_features=2, out_features=channels, hidden_features=256, 
-                        hidden_layers=4, input_scale=max([width, height])).cuda()
+        model = GaborNet(out_features=channels, hidden_layers=4).cuda()
+        learning_rate = 1e-2
 
     # Initialize optimizer
-    optim = torch.optim.Adam(lr=1e-2, params=model.parameters())
+    optim = torch.optim.Adam(lr=learning_rate, params=model.parameters())
 
     # Training loop
     model_input, ground_truth = next(iter(dataloader))
     model_input, ground_truth = model_input.cuda(), ground_truth.cuda()
-    for step in range(total_steps):
+    for step in range(total_steps + 1):
         model_input = model_input.squeeze(0)
         model_output = model(model_input)    
         loss = ((model_output - ground_truth)**2).mean()
@@ -75,13 +75,13 @@ def main():
         final_img = (final_img + 1) / 2
         plt.figure(figsize=(6, 6))
         plt.imshow(final_img)
-        plt.title("Reconstructed RGB Image by SIREN")
+        plt.title("Reconstructed Image")
     else:
         final_img = preds.reshape(height, width)
         final_img = (final_img + 1) / 2
         plt.figure(figsize=(6, 6))
         plt.imshow(final_img, cmap='gray')
-        plt.title("Reconstructed Grayscale Image by SIREN")
+        plt.title("Reconstructed Image")
 
     plt.axis('off')
     plt.show()
