@@ -134,25 +134,25 @@ class GaborNet(nn.Module):
          alpha (float): Parameter for the gamma distribution in Gabor layers.
     """
     def __init__(self, 
-                 in_size: int = 2, 
-                 hidden_size: int = 256, 
-                 out_size: int = 3, 
-                 n_layers: int = 4, 
+                 in_features: int = 2,
+                 out_features: int = 3,
+                 hidden_features: int = 256,
+                 hidden_layers: int = 4, 
                  input_scale: float = 256.0, 
                  alpha: float = 6.0) -> None:
         super().__init__()
-        self.linear = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(n_layers)])
+        self.linear = nn.ModuleList([nn.Linear(hidden_features, hidden_features) for _ in range(hidden_layers)])
         self.output_linear = nn.Sequential(
-            nn.Linear(hidden_size, out_size),
+            nn.Linear(hidden_features, out_features),
             nn.Sigmoid()
         )
         self.filters = nn.ModuleList([
             GaborLayer(
-                in_size,
-                hidden_size,
-                input_scale / np.sqrt(n_layers + 1),
-                alpha / (n_layers + 1)
-            ) for _ in range(n_layers + 1)
+                in_features,
+                hidden_features,
+                input_scale / np.sqrt(hidden_layers + 1),
+                alpha / (hidden_layers + 1)
+            ) for _ in range(hidden_layers + 1)
         ])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
