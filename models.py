@@ -106,7 +106,7 @@ class GaborFilter(nn.Module):
         in_dim (int): Number of input features.
         out_dim (int): Number of output features.
         alpha (float): A scaling factor for the gamma distribution.
-        beta (float, optional): The rate parameter for the Gamma distribution, default is 1.0.
+        beta (float, optional): The rate parameter for the Gamma distribution.
     """
     def __init__(self, in_dim: int, out_dim: int, alpha: float, beta: float = 1.0) -> None:
         super(GaborFilter, self).__init__()
@@ -156,7 +156,7 @@ class GaborNet(nn.Module):
         self.hidden_layers = hidden_layers
 
         # Initialize the Gabor filters for each layer
-        self.gabon_filters = nn.ModuleList([
+        self.gabor_filters = nn.ModuleList([
             GaborFilter(in_features, hidden_features, alpha=6.0 / hidden_layers) for _ in range(hidden_layers)
         ])
 
@@ -171,11 +171,11 @@ class GaborNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Initial Gabor filter output
-        zi = self.gabon_filters[0](x)  # Eq 3.a
+        zi = self.gabor_filters[0](x)  # Eq 3.a
         
         # Recursively apply Gabor filters and linear transformations
         for i in range(self.hidden_layers - 1):
-            zi = self.linear[i](zi) * self.gabon_filters[i + 1](x)  # Eq 3.b
+            zi = self.linear[i](zi) * self.gabor_filters[i + 1](x)  # Eq 3.b
 
         # Final linear transformation
         return self.linear[self.hidden_layers - 1](zi)  # Eq 3.c
