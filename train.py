@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import Siren, GaborNet
+from models import Siren, GaborNet, WaveletNet
 from loss import mse_to_psnr
 
 
@@ -18,15 +18,15 @@ def main():
 
     # Parameters
     sidelength = 256
-    is_rgb = True
+    is_rgb = False
     channels = 3 if is_rgb else 1
     total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'gabornet'
+    model_type = 'waveletnet'
 
     # Load the image dataset
-    image_dataset = ImageDataset(sidelength, path='images/test.jpg', channels=channels)
+    image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
     dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
     # Retrieve image dimensions from the dataset
@@ -39,6 +39,9 @@ def main():
     elif model_type == 'gabornet':
         model = GaborNet(out_features=channels, hidden_layers=4).cuda()
         learning_rate = 1e-2
+    elif model_type == 'waveletnet':
+        model = WaveletNet(out_features=channels, hidden_layers=4).cuda()
+        learning_rate = 1e-3
 
     # Initialize optimizer
     optim = torch.optim.Adam(lr=learning_rate, params=model.parameters())

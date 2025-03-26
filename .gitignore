@@ -9,6 +9,3 @@ logs
 
 # Ignore notes
 notes.txt
-
-# Ignore reference code
-explore_siren.ipynb
