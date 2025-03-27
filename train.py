@@ -18,7 +18,7 @@ def main():
 
     # Parameters
     sidelength = 256
-    is_rgb = False
+    is_rgb = True
     channels = 3 if is_rgb else 1
     total_steps = 500
     log_interval = 10
@@ -26,7 +26,7 @@ def main():
     model_type = 'waveletnet'
 
     # Load the image dataset
-    image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
+    image_dataset = ImageDataset(sidelength, path='images/rgb.jpg', channels=channels)
     dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
     # Retrieve image dimensions from the dataset
@@ -34,7 +34,11 @@ def main():
 
     # Initialize model
     if model_type == 'siren':
-        model = Siren(out_features=channels, hidden_layers=4, outermost_linear=True).cuda()
+        model = Siren(in_features=2, 
+                      hidden_features=256,
+                      out_features=channels, 
+                      hidden_layers=4, 
+                      outermost_linear=True).cuda()
         learning_rate = 1e-4
     elif model_type == 'gabornet':
         model = GaborNet(out_features=channels, hidden_layers=4).cuda()
