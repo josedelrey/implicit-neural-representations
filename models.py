@@ -8,7 +8,7 @@ class SineLayer(nn.Module):
     """
     SineLayer: a fully-connected layer with sine activation.
     
-    This is the original SIREN implementation from "Implicit Neural Representations with Periodic Activation Functions"
+    This is the original implementation from "Implicit Neural Representations with Periodic Activation Functions"
     by Sitzmann et al. (2020). See: https://github.com/vsitzmann/siren
 
     If is_first=True, omega_0 is a frequency factor which simply multiplies the activations before the 
@@ -41,13 +41,13 @@ class SineLayer(nn.Module):
         # For visualization of activation distributions
         intermediate = self.omega_0 * self.linear(input)
         return torch.sin(intermediate), intermediate
-    
-    
+
+
 class Siren(nn.Module):
     """
     SIREN model composed of multiple SineLayer modules and a final output layer.
     
-    This is the original SIREN implementation from "Implicit Neural Representations with Periodic Activation Functions"
+    This is the original implementation from "Implicit Neural Representations with Periodic Activation Functions"
     by Sitzmann et al. (2020). See: https://github.com/vsitzmann/siren
 
     Args:
@@ -84,9 +84,9 @@ class Siren(nn.Module):
         self.net = nn.Sequential(*self.net)
     
     def forward(self, coords):
-        coords = coords.clone().detach().requires_grad_(True)  # Allows taking derivatives w.r.t. input
+        coords = coords.clone().detach().requires_grad_(True)
         output = self.net(coords)
-        return output, coords
+        return output
 
     def forward_with_activations(self, coords, retain_grad=False):
         """
@@ -114,94 +114,163 @@ class Siren(nn.Module):
             activation_count += 1
 
         return activations
-
-
-class GaborFilter(nn.Module):
-    """
-    A Gabor filter module used for feature extraction.
-
-    This layer applies a set of Gabor filters to the input tensor. The filters are 
-    parameterized by a set of learned means (mu) and gamma values. The Gabor filter 
-    uses a combination of sine and exponential terms to extract features from the 
-    input. The learned gamma values control the width of the Gaussian in the filter.
-
-    Args:
-        in_dim (int): Number of input features.
-        out_dim (int): Number of output features.
-        alpha (float): A scaling factor for the gamma distribution.
-        beta (float, optional): The rate parameter for the Gamma distribution.
-    """
-    def __init__(self, in_dim: int, out_dim: int, alpha: float, beta: float = 1.0) -> None:
-        super(GaborFilter, self).__init__()
-        
-        # Initialize the parameters for the Gabor filter
-        self.mu = nn.Parameter(torch.rand((out_dim, in_dim)) * 2 - 1)
-        self.gamma = nn.Parameter(torch.distributions.gamma.Gamma(alpha, beta).sample((out_dim, )))
-        self.linear = nn.Linear(in_dim, out_dim)
-
-        # Initialize the weights and bias
-        self.init_weights()
     
-    def init_weights(self) -> None:
-        self.linear.weight.data *= 128. * torch.sqrt(self.gamma.unsqueeze(-1))
-        self.linear.bias.data.uniform_(-np.pi, np.pi)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Compute the squared Euclidean distance for the Gabor filter
-        norm = (x ** 2).sum(dim=1).unsqueeze(-1) + (self.mu ** 2).sum(dim=1).unsqueeze(0) - 2 * x @ self.mu.T
-        
-        # Apply the Gabor filter and return the result
-        return torch.exp(- self.gamma.unsqueeze(0) / 2. * norm) * torch.sin(self.linear(x))
-
-
-class GaborNet(nn.Module):
+class MFNBase(nn.Module):
     """
-    A network based on multiple Gabor filters for feature extraction and transformation.
+    MFNBase: Multiplicative filter network base class.
+    
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
 
-    This model applies a series of Gabor filters and linear transformations to the 
-    input tensor. The Gabor filters are used to extract features, while the linear 
-    layers are used to transform the extracted features into the final output. 
-
-    Args:
-        in_features (int): Number of input features.
-        hidden_features (int): Number of features in the hidden layers.
-        out_features (int): Number of output features.
-        hidden_layers (int): Number of hidden layers in the network.
+    Expects the child class to define the 'filters' attribute, which should be 
+    a nn.ModuleList of n_layers+1 filters with output equal to hidden_size.
     """
-    def __init__(self, 
-                 in_features: int = 2, 
-                 hidden_features: int = 256, 
-                 out_features: int = 1, 
-                 hidden_layers: int = 4) -> None:
-        super(GaborNet, self).__init__()
+    def __init__(
+        self, hidden_size, out_size, n_layers, weight_scale, bias=True, output_act=False
+    ):
+        super().__init__()
 
-        # Store the number of hidden layers
-        self.hidden_layers = hidden_layers
-
-        # Initialize the Gabor filters for each layer
-        self.gabor_filters = nn.ModuleList([
-            GaborFilter(in_features, hidden_features, alpha=6.0 / hidden_layers) for _ in range(hidden_layers)
-        ])
-
-        # Initialize the linear layers
         self.linear = nn.ModuleList(
-            [torch.nn.Linear(hidden_features, hidden_features) for _ in range(hidden_layers - 1)] + [torch.nn.Linear(hidden_features, out_features)]
+            [nn.Linear(hidden_size, hidden_size, bias) for _ in range(n_layers)]
+        )
+        self.output_linear = nn.Linear(hidden_size, out_size)
+        self.output_act = output_act
+
+        for lin in self.linear:
+            lin.weight.data.uniform_(
+                -np.sqrt(weight_scale / hidden_size),
+                np.sqrt(weight_scale / hidden_size),
+            )
+
+        return
+
+    def forward(self, x):
+        out = self.filters[0](x)
+        for i in range(1, len(self.filters)):
+            out = self.filters[i](x) * self.linear[i - 1](out)
+        out = self.output_linear(out)
+
+        if self.output_act:
+            out = torch.sin(out)
+
+        return out
+
+
+class FourierLayer(nn.Module):
+    """
+    FourierLayer: Sine filter as used in FourierNet.
+    
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    """
+    def __init__(self, in_features, out_features, weight_scale):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        self.linear.weight.data *= weight_scale  # gamma
+        self.linear.bias.data.uniform_(-np.pi, np.pi)
+        return
+
+    def forward(self, x):
+        return torch.sin(self.linear(x))
+
+
+class FourierNet(MFNBase):
+    """
+    FourierNet: Network using FourierLayer filters.
+    
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    """
+    def __init__(
+        self,
+        in_size,
+        hidden_size,
+        out_size,
+        n_layers=3,
+        input_scale=256.0,
+        weight_scale=1.0,
+        bias=True,
+        output_act=False,
+    ):
+        super().__init__(
+            hidden_size, out_size, n_layers, weight_scale, bias, output_act
+        )
+        self.filters = nn.ModuleList(
+            [
+                FourierLayer(in_size, hidden_size, input_scale / np.sqrt(n_layers + 1))
+                for _ in range(n_layers + 1)
+            ]
         )
 
-        # Initialize weights for the linear layers
-        for lin in self.linear[:hidden_layers - 1]:
-            lin.weight.data.uniform_(-np.sqrt(1.0 / hidden_features), np.sqrt(1.0 / hidden_features))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Initial Gabor filter output
-        zi = self.gabor_filters[0](x)  # Eq 3.a
-        
-        # Recursively apply Gabor filters and linear transformations
-        for i in range(self.hidden_layers - 1):
-            zi = self.linear[i](zi) * self.gabor_filters[i + 1](x)  # Eq 3.b
+class GaborLayer(nn.Module):
+    """
+    GaborLayer: Gabor-like filter as used in GaborNet.
+    
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    """
+    def __init__(self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        self.mu = nn.Parameter(2 * torch.rand(out_features, in_features) - 1)
+        self.gamma = nn.Parameter(
+            torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,))
+        )
+        self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
+        self.linear.bias.data.uniform_(-np.pi, np.pi)
+        return
 
-        # Final linear transformation
-        return self.linear[self.hidden_layers - 1](zi)  # Eq 3.c
+    def forward(self, x):
+        D = (
+            (x ** 2).sum(-1)[..., None]
+            + (self.mu ** 2).sum(-1)[None, :]
+            - 2 * x @ self.mu.T
+        )
+        return torch.sin(self.linear(x)) * torch.exp(-0.5 * D * self.gamma[None, :])
+
+
+class GaborNet(MFNBase):
+    """
+    GaborNet: Network using GaborLayer filters.
+    
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021).
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    """
+    def __init__(
+        self,
+        in_size,
+        hidden_size,
+        out_size,
+        n_layers=3,
+        input_scale=256.0,
+        weight_scale=1.0,
+        alpha=6.0,
+        beta=1.0,
+        bias=True,
+        output_act=False,
+    ):
+        super().__init__(
+            hidden_size, out_size, n_layers, weight_scale, bias, output_act
+        )
+        self.filters = nn.ModuleList(
+            [
+                GaborLayer(
+                    in_size,
+                    hidden_size,
+                    input_scale / np.sqrt(n_layers + 1),
+                    alpha / (n_layers + 1),
+                    beta,
+                )
+                for _ in range(n_layers + 1)
+            ]
+        )
 
 
 class WaveletFilter(nn.Module):
@@ -260,6 +329,7 @@ class WaveletFilter(nn.Module):
         wavelet_response = self.morlet_wavelet(lin_out)
         # Return the modulated response
         return envelope * wavelet_response
+
 
 class WaveletNet(nn.Module):
     """

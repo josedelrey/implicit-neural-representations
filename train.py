@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import Siren, GaborNet, WaveletNet
+from models import Siren, GaborNet, FourierNet, WaveletNet
 from loss import mse_to_psnr
 
 
@@ -18,15 +18,15 @@ def main():
 
     # Parameters
     sidelength = 256
-    is_rgb = True
+    is_rgb = False
     channels = 3 if is_rgb else 1
     total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'waveletnet'
+    model_type = 'fouriernet'
 
     # Load the image dataset
-    image_dataset = ImageDataset(sidelength, path='images/rgb.jpg', channels=channels)
+    image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
     dataloader = DataLoader(image_dataset, batch_size=1, pin_memory=True, num_workers=0)
 
     # Retrieve image dimensions from the dataset
@@ -34,14 +34,35 @@ def main():
 
     # Initialize model
     if model_type == 'siren':
-        model = Siren(in_features=2, 
+        model = Siren(in_features=2,
                       hidden_features=256,
-                      out_features=channels, 
-                      hidden_layers=4, 
-                      outermost_linear=True).cuda()
+                      hidden_layers=4,
+                      out_features=channels,
+                      outermost_linear=True,
+                      first_omega_0=30,
+                      hidden_omega_0=30).cuda()
         learning_rate = 1e-4
     elif model_type == 'gabornet':
-        model = GaborNet(out_features=channels, hidden_layers=4).cuda()
+        model = GaborNet(in_size=2,
+                         hidden_size=256,
+                         out_size=channels,
+                         n_layers=4,
+                         input_scale=256.0,
+                         weight_scale=1.0,
+                         alpha=6.0,
+                         beta=1.0,
+                         bias=True,
+                         output_act=False).cuda()
+        learning_rate = 1e-2
+    elif model_type == 'fouriernet':
+        model = FourierNet(in_size=2,
+                           hidden_size=256,
+                           out_size=channels,
+                           n_layers=4,
+                           input_scale=256.0,
+                           weight_scale=1.0,
+                           bias=True,
+                           output_act=False).cuda()
         learning_rate = 1e-2
     elif model_type == 'waveletnet':
         model = WaveletNet(out_features=channels, hidden_layers=4).cuda()
