@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import Siren, GaborNet, FourierNet, WaveletNet, ReLUPE
+from models import Siren, GaborNet, FourierNet, WaveletNet, ReLUPE, MLP
 from loss import mse_to_psnr
 
 
@@ -23,7 +23,7 @@ def main():
     total_steps = 5000
     log_interval = 10
     chunk_size = 4096
-    model_type = 'relupe'
+    model_type = 'waveletnet'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
@@ -33,12 +33,15 @@ def main():
     height, width = image_dataset.height, image_dataset.width
 
     # Initialize model
-    if model_type == 'relupe':
-        model = ReLUPE(in_features=2,
-                       hidden_features=256,
-                       hidden_layers=4,
-                       out_features=channels,
-                       L=10).cuda()
+    if model_type == 'mlp':
+        model = MLP(n_in=2, 
+                    n_out=channels, 
+                    n_layers=5, 
+                    n_hidden_units=256, 
+                    act='relu', 
+                    act_trainable=False, 
+                    use_pe=True, 
+                    L=10).cuda()
         learning_rate = 5e-4
     elif model_type == 'siren':
         model = Siren(in_features=2,
@@ -65,7 +68,7 @@ def main():
         model = FourierNet(in_size=2,
                            hidden_size=256,
                            out_size=channels,
-                           n_layers=4,
+                           n_layers=5,
                            input_scale=256.0,
                            weight_scale=1.0,
                            bias=True,
