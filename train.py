@@ -20,10 +20,10 @@ def main():
     sidelength = 256
     is_rgb = False
     channels = 3 if is_rgb else 1
-    total_steps = 5000
+    total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'waveletnet'
+    model_type = 'mlp'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
@@ -38,11 +38,12 @@ def main():
                     n_out=channels, 
                     n_layers=5, 
                     n_hidden_units=256, 
-                    act='relu', 
-                    act_trainable=False, 
-                    use_pe=True, 
-                    L=10).cuda()
-        learning_rate = 5e-4
+                    act='gaussian', 
+                    act_trainable=True, 
+                    use_pe=False, 
+                    L=10,
+                    a=0.1).cuda()
+        learning_rate = 1e-3
     elif model_type == 'siren':
         model = Siren(in_features=2,
                       hidden_features=256,
