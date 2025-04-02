@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 
-from encoding import positional_encoding
+from modules.encoding import positional_encoding
 
 
 class RealGaborLayer(nn.Module):
