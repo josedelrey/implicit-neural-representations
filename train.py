@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import ImageDataset
+from modules.dataset import ImageDataset
 from modules.mlp import MLP
 from modules.siren import Siren
 from modules.mfn import FourierNet, GaborNet
@@ -11,7 +11,7 @@ from modules.wavelet import WaveletNet
 from modules.wire import WIRE
 from modules.finer import Finer
 from modules.frinr import FRINR
-from loss import mse_to_psnr
+from modules.loss import mse_to_psnr
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
     total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'incode'
+    model_type = 'finer'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
