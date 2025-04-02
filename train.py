@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import Siren, GaborNet, FourierNet, WaveletNet, ReLUPE, MLP
+from models import SIREN, GaborNet, FourierNet, WaveletNet, MLP, WIRE
 from loss import mse_to_psnr
 
 
@@ -23,7 +23,7 @@ def main():
     total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'mlp'
+    model_type = 'waveletnet'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
@@ -45,7 +45,7 @@ def main():
                     a=0.1).cuda()
         learning_rate = 1e-3
     elif model_type == 'siren':
-        model = Siren(in_features=2,
+        model = SIREN(in_features=2,
                       hidden_features=256,
                       hidden_layers=4,
                       out_features=channels,
@@ -76,7 +76,23 @@ def main():
                            output_act=False).cuda()
         learning_rate = 1e-2
     elif model_type == 'waveletnet':
-        model = WaveletNet(out_features=channels, hidden_layers=4).cuda()
+        model = WaveletNet(in_features=2, 
+                           hidden_features=256, 
+                           out_features=1, 
+                           hidden_layers=3,
+                           omega0=5.0).cuda()
+        learning_rate = 1e-3
+    elif model_type == 'wire':
+        model = WIRE(in_features=2, 
+                     hidden_features=256, 
+                     hidden_layers=3, 
+                     out_features=channels, 
+                     outermost_linear=True, 
+                     first_omega_0=10.0, 
+                     hidden_omega_0=10.0, 
+                     scale=6.0,
+                     pos_encode=False, 
+                     L=6).cuda()
         learning_rate = 1e-3
 
     # Initialize optimizer
