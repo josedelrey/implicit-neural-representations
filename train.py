@@ -4,7 +4,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import ImageDataset
-from models import SIREN, GaborNet, FourierNet, WaveletNet, MLP, WIRE
+from modules.mlp import MLP
+from modules.siren import Siren
+from modules.mfn import FourierNet, GaborNet
+from modules.wavelet import WaveletNet
+from modules.wire import WIRE
+from modules.finer import Finer
+from modules.frinr import FRINR
 from loss import mse_to_psnr
 
 
@@ -23,7 +29,7 @@ def main():
     total_steps = 500
     log_interval = 10
     chunk_size = 4096
-    model_type = 'waveletnet'
+    model_type = 'incode'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
@@ -45,7 +51,7 @@ def main():
                     a=0.1).cuda()
         learning_rate = 1e-3
     elif model_type == 'siren':
-        model = SIREN(in_features=2,
+        model = Siren(in_features=2,
                       hidden_features=256,
                       hidden_layers=4,
                       out_features=channels,
@@ -94,6 +100,34 @@ def main():
                      pos_encode=False, 
                      L=6).cuda()
         learning_rate = 1e-3
+    elif model_type == 'finer':
+        model = Finer(in_features=2, 
+                      out_features=channels, 
+                      hidden_layers=3, 
+                      hidden_features=256, 
+                      first_omega=30, 
+                      hidden_omega=30, 
+                      init_method='sine', 
+                      init_gain=1, 
+                      fbs=None, 
+                      hbs=None, 
+                      alphaType=None, 
+                      alphaReqGrad=False).cuda()
+        learning_rate = 1e-4
+    elif model_type == 'frinr':
+        model = FRINR(mode='sin',in_features=2,
+                      hidden_features=256,
+                      hidden_layers=3,
+                      out_features=channels,
+                      outermost_linear=True,
+                      high_freq_num=128,
+                      low_freq_num=128,
+                      phi_num=32,
+                      alpha=0.01, # for relu, alpha:0.05; for sin, alpha:0.01
+                      first_omega_0=30.0,
+                      hidden_omega_0=30.0,
+                      pe=False).cuda()
+        learning_rate = 1e-4
 
     # Initialize optimizer
     optim = torch.optim.Adam(lr=learning_rate, params=model.parameters())
