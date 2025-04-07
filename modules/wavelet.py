@@ -12,7 +12,7 @@ class WaveletFilter(nn.Module):
     the Gabor filter. Instead of using a sine nonlinearity, it uses a Morlet wavelet
     function:
     
-        ψ(u) = exp(-u²/2)*cos(ω₀ * u) - exp(-ω₀²/2)
+        ψ(u) = -e̶x̶p̶(̶-̶u̶²̶/̶2̶) * cos(ω₀ * u) - exp(-ω₀²/2)
     
     where ω₀ is a learnable frequency parameter.
     
@@ -44,7 +44,7 @@ class WaveletFilter(nn.Module):
         """
         Applies the Morlet wavelet nonlinearity to the input u.
         
-        ψ(u) = e̶x̶p̶(̶-̶u̶²̶/̶2̶) * cos(ω₀ * u) - exp(-ω₀²/2)
+        ψ(u) = -e̶x̶p̶(̶-̶u̶²̶/̶2̶) * cos(ω₀ * u) - exp(-ω₀²/2)
         """
         return torch.cos(self.omega0 * u) - torch.exp(-0.5 * (self.omega0**2))
     
