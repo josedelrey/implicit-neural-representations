@@ -25,8 +25,7 @@ class RealGaborLayer(nn.Module):
     '''
     
     def __init__(self, in_features, out_features, bias=True,
-                 is_first=False, omega0=10.0, sigma0=10.0,
-                 trainable=False):
+                 is_first=False, omega0=10.0, sigma0=10.0):
         super().__init__()
         self.omega_0 = omega0
         self.scale_0 = sigma0
