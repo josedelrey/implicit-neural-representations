@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from modules.dataset import ImageDataset
 from modules.mlp import MLP
 from modules.siren import Siren
-from modules.mfn import FourierNet, GaborNet
+from modules.mfn import FourierNet, GaborNet, MFNWaveletNet
 from modules.wavelet import WaveletNet
 from modules.wire import WIRE
 from modules.finer import Finer
@@ -26,10 +26,10 @@ def main():
     sidelength = 256
     is_rgb = False
     channels = 3 if is_rgb else 1
-    total_steps = 500
+    total_steps = 1000
     log_interval = 10
     chunk_size = 4096
-    model_type = 'finer'
+    model_type = 'mfnwaveletnet'  # Options: 'mlp', 'siren', 'gabornet', 'fouriernet', 'waveletnet', 'wire', 'finer', 'frinr'
 
     # Load the image dataset
     image_dataset = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
@@ -50,6 +50,7 @@ def main():
                     L=10,
                     a=0.1).cuda()
         learning_rate = 1e-3
+
     elif model_type == 'siren':
         model = Siren(in_features=2,
                       hidden_features=256,
@@ -59,11 +60,12 @@ def main():
                       first_omega_0=30,
                       hidden_omega_0=30).cuda()
         learning_rate = 1e-4
+
     elif model_type == 'gabornet':
         model = GaborNet(in_size=2,
                          hidden_size=256,
                          out_size=channels,
-                         n_layers=4,
+                         n_layers=3,
                          input_scale=256.0,
                          weight_scale=1.0,
                          alpha=6.0,
@@ -71,23 +73,38 @@ def main():
                          bias=True,
                          output_act=False).cuda()
         learning_rate = 1e-2
+
     elif model_type == 'fouriernet':
         model = FourierNet(in_size=2,
                            hidden_size=256,
                            out_size=channels,
-                           n_layers=5,
+                           n_layers=3,
                            input_scale=256.0,
                            weight_scale=1.0,
                            bias=True,
                            output_act=False).cuda()
         learning_rate = 1e-2
+
+    elif model_type == 'mfnwaveletnet':
+        model = MFNWaveletNet(in_size=2, 
+                              hidden_size=256, 
+                              out_size=channels, 
+                              n_layers=3, 
+                              input_scale=128.0, 
+                              weight_scale=1.0, 
+                              alpha=6.0, 
+                              beta=1.0, 
+                              omega0=5.0).cuda()
+        learning_rate = 1e-3
+
     elif model_type == 'waveletnet':
         model = WaveletNet(in_features=2, 
                            hidden_features=256, 
                            out_features=1, 
-                           hidden_layers=3,
+                           hidden_layers=4,
                            omega0=5.0).cuda()
         learning_rate = 1e-3
+
     elif model_type == 'wire':
         model = WIRE(in_features=2, 
                      hidden_features=256, 
@@ -100,6 +117,7 @@ def main():
                      pos_encode=False, 
                      L=6).cuda()
         learning_rate = 1e-3
+
     elif model_type == 'finer':
         model = Finer(in_features=2, 
                       out_features=channels, 
@@ -114,6 +132,7 @@ def main():
                       alphaType=None, 
                       alphaReqGrad=False).cuda()
         learning_rate = 1e-4
+
     elif model_type == 'frinr':
         model = FRINR(mode='sin',in_features=2,
                       hidden_features=256,
