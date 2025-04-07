@@ -180,14 +180,16 @@ class WaveletLayer(nn.Module):
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
         self.linear.bias.data.uniform_(-np.pi, np.pi)
         # Learnable frequency parameter for the Morlet wavelet
-        self.omega0 = nn.Parameter(torch.tensor(omega0))
+        self.omega0 = omega0
     
     def morlet_wavelet(self, u):
         """
         Applies the Morlet wavelet nonlinearity:
             ψ(u) = cos(ω₀ * u) - exp(-0.5 * ω₀²)
         """
-        return torch.cos(self.omega0 * u) - torch.exp(-0.5 * (self.omega0 ** 2))
+        omega0_tensor = torch.tensor(self.omega0, dtype=u.dtype, device=u.device)
+        constant = torch.exp(torch.tensor(-0.5 * (self.omega0 ** 2), dtype=u.dtype, device=u.device))
+        return torch.cos(omega0_tensor * u) - constant
     
     def forward(self, x):
         # Compute squared Euclidean distance between x and the learned center μ.
