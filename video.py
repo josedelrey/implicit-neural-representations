@@ -52,7 +52,7 @@ def main():
         model = MLP(n_in=in_features,
                     n_out=channels,
                     n_layers=5,
-                    n_hidden_units=256,
+                    n_hidden_units=1024,
                     act='gaussian',
                     act_trainable=True,
                     use_pe=False,
@@ -62,7 +62,7 @@ def main():
 
     elif model_type == 'siren':
         model = Siren(in_features=in_features,
-                      hidden_features=256,
+                      hidden_features=1024,
                       hidden_layers=4,
                       out_features=channels,
                       outermost_linear=True,
@@ -96,7 +96,7 @@ def main():
 
     elif model_type == 'mfnwaveletnet':
         model = MFNWaveletNet(in_size=in_features,
-                              hidden_size=256,
+                              hidden_size=1024,
                               out_size=channels,
                               n_layers=3,
                               input_scale=128.0,
@@ -108,7 +108,7 @@ def main():
 
     elif model_type == 'waveletnet':
         model = WaveletNet(in_features=in_features,
-                           hidden_features=256,
+                           hidden_features=1024,
                            out_features=channels,
                            hidden_layers=4,
                            omega0=5.0).cuda()
@@ -116,7 +116,7 @@ def main():
 
     elif model_type == 'wire':
         model = WIRE(in_features=in_features,
-                     hidden_features=256,
+                     hidden_features=1024,
                      hidden_layers=3,
                      out_features=channels,
                      outermost_linear=True,
@@ -131,7 +131,7 @@ def main():
         model = Finer(in_features=in_features,
                       out_features=channels,
                       hidden_layers=3,
-                      hidden_features=256,
+                      hidden_features=1024,
                       first_omega=30,
                       hidden_omega=30,
                       init_method='sine',
@@ -144,7 +144,7 @@ def main():
 
     elif model_type == 'frinr':
         model = FRINR(mode='sin', in_features=in_features,
-                      hidden_features=256,
+                      hidden_features=1024,
                       hidden_layers=3,
                       out_features=channels,
                       outermost_linear=True,
@@ -171,7 +171,7 @@ def main():
         # Forward pass on the random mini-batch
         output_batch = model(input_batch)
         loss = ((output_batch - truth_batch) ** 2).mean()
-        
+
         # Backpropagation and optimizer step
         loss.backward()
         optim.step()
@@ -206,7 +206,7 @@ def main():
         psnr_values.append(mse_to_psnr(mse))
     avg_psnr = np.mean(psnr_values)
     print("Average pSNR over all frames: %0.6f" % avg_psnr)
-
+    
     # Optionally, visualize the first reconstructed frame.
     if channels == 3:
         first_frame = preds_video[0]
