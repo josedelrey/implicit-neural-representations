@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-# Use VideoDataset instead of ImageDataset:
 from modules.dataset import VideoDataset
 from modules.mlp import MLP
 from modules.siren import Siren
@@ -25,7 +24,7 @@ def main():
     sidelength = 256
     is_rgb = True
     channels = 3 if is_rgb else 1
-    total_steps = 20000
+    total_steps = 10000
     log_interval = 10
     batch_size_train = 32768     # Batch size for random mini-batch sampling in training
     chunk_size_eval = 1024       # Chunk size used during evaluation
@@ -195,10 +194,6 @@ def main():
     preds_video = preds.reshape(num_frames, height, width, channels)
     truth_video = video_dataset.pixels.cpu().reshape(num_frames, height, width, channels)
 
-    # Convert from normalized range [-1, 1] to [0, 1]
-    preds_video = (preds_video + 1) / 2
-    truth_video = (truth_video + 1) / 2
-
     # Compute per-frame pSNR and average over all frames.
     psnr_values = []
     for t in range(num_frames):
@@ -206,15 +201,21 @@ def main():
         psnr_values.append(mse_to_psnr(mse))
     avg_psnr = np.mean(psnr_values)
     print("Average pSNR over all frames: %0.6f" % avg_psnr)
-    
-    # Optionally, visualize the first reconstructed frame.
+
+    # Convert from normalized range [-1, 1] to [0, 1] for visualization
+    preds_video = (preds_video + 1) / 2
+    truth_video = (truth_video + 1) / 2
+
+    # Optionally, visualize the first reconstructed frame
     if channels == 3:
         first_frame = preds_video[0]
+        first_frame = np.clip(first_frame, 0, 1)
         plt.figure(figsize=(6, 6))
         plt.imshow(first_frame)
         plt.title("Reconstructed First Frame")
     else:
         first_frame = preds_video[0].squeeze(-1)
+        first_frame = np.clip(first_frame, 0, 1)
         plt.figure(figsize=(6, 6))
         plt.imshow(first_frame, cmap='gray')
         plt.title("Reconstructed First Frame")
