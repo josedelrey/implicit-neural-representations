@@ -74,22 +74,22 @@ class FourierNet(MFNBase):
     """
     def __init__(
         self,
-        in_size,
-        hidden_size,
-        out_size,
-        n_layers=3,
+        in_features,
+        hidden_features,
+        out_features,
+        hidden_layers=3,
         input_scale=256.0,
         weight_scale=1.0,
         bias=True,
         output_act=False,
     ):
         super().__init__(
-            hidden_size, out_size, n_layers, weight_scale, bias, output_act
+            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
         )
         self.filters = nn.ModuleList(
             [
-                FourierLayer(in_size, hidden_size, input_scale / np.sqrt(n_layers + 1))
-                for _ in range(n_layers + 1)
+                FourierLayer(in_features, hidden_features, input_scale / np.sqrt(hidden_layers + 1))
+                for _ in range(hidden_layers + 1)
             ]
         )
 
@@ -132,10 +132,10 @@ class GaborNet(MFNBase):
     """
     def __init__(
         self,
-        in_size,
-        hidden_size,
-        out_size,
-        n_layers=3,
+        in_features,
+        hidden_features,
+        out_features,
+        hidden_layers=3,
         input_scale=256.0,
         weight_scale=1.0,
         alpha=6.0,
@@ -144,18 +144,18 @@ class GaborNet(MFNBase):
         output_act=False,
     ):
         super().__init__(
-            hidden_size, out_size, n_layers, weight_scale, bias, output_act
+            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
         )
         self.filters = nn.ModuleList(
             [
                 GaborLayer(
-                    in_size,
-                    hidden_size,
-                    input_scale / np.sqrt(n_layers + 1),
-                    alpha / (n_layers + 1),
+                    in_features,
+                    hidden_features,
+                    input_scale / np.sqrt(hidden_layers + 1),
+                    alpha / (hidden_layers + 1),
                     beta,
                 )
-                for _ in range(n_layers + 1)
+                for _ in range(hidden_layers + 1)
             ]
         )
 
@@ -226,10 +226,10 @@ class MFNWaveletNet(MFNBase):
     """
     def __init__(
         self,
-        in_size,
-        hidden_size,
-        out_size,
-        n_layers=3,
+        in_features,
+        hidden_features,
+        out_features,
+        hidden_layers=3,
         input_scale=256.0,
         weight_scale=1.0,
         alpha=6.0,
@@ -238,24 +238,24 @@ class MFNWaveletNet(MFNBase):
         bias=True,
         output_act=False,
     ):
-        super().__init__(hidden_size, out_size, n_layers, weight_scale, bias, output_act)
+        super().__init__(hidden_features, out_features, hidden_layers, weight_scale, bias, output_act)
         self.filters = nn.ModuleList(
             [
                 WaveletLayer(
-                    in_size,
-                    hidden_size,
-                    input_scale / np.sqrt(n_layers + 1),
-                    alpha / (n_layers + 1),
+                    in_features,
+                    hidden_features,
+                    input_scale / np.sqrt(hidden_layers + 1),
+                    alpha / (hidden_layers + 1),
                     beta,
                     omega0,
                 )
-                for _ in range(n_layers + 1)
+                for _ in range(hidden_layers + 1)
             ]
         )
         # Create normalization layers for each branch before multiplication:
         # One for each filter output (n_layers + 1) and one for each linear branch (n_layers).
-        self.filter_norms = nn.ModuleList([nn.LayerNorm(hidden_size) for _ in range(n_layers + 1)])
-        self.linear_norms = nn.ModuleList([nn.LayerNorm(hidden_size) for _ in range(n_layers)])
+        self.filter_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)])
+        self.linear_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers)])
         
     def forward(self, x):
         # Apply the first filter and normalize its output.
