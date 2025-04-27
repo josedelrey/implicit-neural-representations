@@ -8,11 +8,15 @@ from models.model_factory import build_model
 
 
 def main():
+    # Device configuration
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
+
     # Reproducibility
     seed = 42
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
+    if device.type == 'cuda':
         torch.cuda.manual_seed_all(seed)
 
     # Parameters
@@ -30,12 +34,12 @@ def main():
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)
     height, width, num_frames = dataset.height, dataset.width, dataset.num_frames
-    coords = dataset.coords.cuda()
-    pixels = dataset.pixels.cuda()
+    coords = dataset.coords.to(device)
+    pixels = dataset.pixels.to(device)
     num_coords = coords.shape[0]
 
     # Model and optimizer
-    model, learning_rate = build_model(model_type, task, channels)
+    model, learning_rate = build_model(model_type, task, channels, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training loop
