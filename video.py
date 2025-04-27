@@ -34,7 +34,7 @@ def main():
     pixels = dataset.pixels.cuda()
     num_coords = coords.shape[0]
 
-    # Model & optimizer
+    # Model and optimizer
     model, learning_rate = build_model(model_type, task, channels)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -46,7 +46,6 @@ def main():
         batch_pixels = pixels[indices]
         preds = model(batch_coords)
         loss = ((preds - batch_pixels) ** 2).mean()
-
         loss.backward()
         optimizer.step()
 

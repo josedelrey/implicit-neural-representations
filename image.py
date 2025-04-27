@@ -31,7 +31,7 @@ def main():
     loader   = DataLoader(dataset, batch_size=1, pin_memory=True, num_workers=0)
     height, width = dataset.height, dataset.width
 
-    # Model & optimizer
+    # Model and optimizer
     model, learning_rate = build_model(model_type, task, channels, device='cuda')
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -42,18 +42,12 @@ def main():
         coords_squeezed = coords.squeeze(0)
         preds = model(coords_squeezed)
         loss = ((preds - pixels) ** 2).mean()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
         if step % log_interval == 0:
             print(f"Step {step}, Loss {loss.item():.6f}, PSNR {mse_to_psnr(loss.item()):.6f}")
-
-        optimizer.zero_grad()
-        loss.backward()
-
-        # Gradient clipping
-        if model_type == 'mfnwaveletnet':
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        
-        optimizer.step()
 
     # Evaluation
     model.eval()
