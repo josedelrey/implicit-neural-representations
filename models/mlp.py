@@ -28,10 +28,10 @@ class MLP(nn.Module):
         **kwargs: Additional keyword arguments for custom activation functions (e.g., a, b).
     """
     def __init__(self, 
-                 n_in: int, 
-                 n_out: int = 3, 
-                 n_layers: int = 4, 
-                 n_hidden_units: int = 256, 
+                 in_features: int, 
+                 out_features: int = 3, 
+                 hidden_layers: int = 4, 
+                 hidden_features: int = 256, 
                  act: str = 'relu', 
                  act_trainable: bool = False, 
                  use_pe: bool = False, 
@@ -41,18 +41,18 @@ class MLP(nn.Module):
         self.use_pe = use_pe
         self.L = L
         # If positional encoding is active, modify the input dimension accordingly.
-        effective_n_in = n_in * (1 + 2 * L) if use_pe else n_in
+        effective_n_in = in_features * (1 + 2 * L) if use_pe else in_features
 
         layers = []
-        for i in range(n_layers):
+        for i in range(hidden_layers):
             # Define linear layer based on position in the network
             if i == 0:
-                linear_layer = nn.Linear(effective_n_in, n_hidden_units)
-            elif i < n_layers - 1:
-                linear_layer = nn.Linear(n_hidden_units, n_hidden_units)
+                linear_layer = nn.Linear(effective_n_in, hidden_features)
+            elif i < hidden_layers - 1:
+                linear_layer = nn.Linear(hidden_features, hidden_features)
             
             # For all but the final layer, add an activation function
-            if i < n_layers - 1:
+            if i < hidden_layers - 1:
                 if act == 'relu':
                     activation = nn.ReLU(inplace=True)
                 elif act == 'gaussian':
@@ -74,7 +74,7 @@ class MLP(nn.Module):
                 layers.extend([linear_layer, activation])
             else:
                 # Final layer: output n_out values and apply a Sigmoid activation
-                layers.extend([nn.Linear(n_hidden_units, n_out)])
+                layers.extend([nn.Linear(hidden_features, out_features)])
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

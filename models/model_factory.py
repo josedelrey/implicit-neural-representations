@@ -18,10 +18,10 @@ BASE_SPECS = {
         cls=MLP,
         lr=1e-3,
         kwargs={
-            "n_in": 2,
-            "n_out": None,
-            "n_layers": 4,
-            "n_hidden_units": 256,
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
             "act": "gaussian",
             "act_trainable": True,
             "use_pe": False,
@@ -46,10 +46,10 @@ BASE_SPECS = {
         cls=GaborNet,
         lr=1e-2,
         kwargs={
-            "in_size": 2,
-            "out_size": None,
-            "n_layers": 4,
-            "hidden_size": 256,
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
             "input_scale": 256.0,
             "weight_scale": 1.0,
             "alpha": 6.0,
@@ -62,10 +62,10 @@ BASE_SPECS = {
         cls=FourierNet,
         lr=1e-2,
         kwargs={
-            "in_size": 2,
-            "out_size": None,
-            "n_layers": 4,
-            "hidden_size": 256,
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
             "input_scale": 256.0,
             "weight_scale": 1.0,
             "bias": True,
@@ -76,10 +76,10 @@ BASE_SPECS = {
         cls=MFNWaveletNet,
         lr=1e-3,
         kwargs={
-            "in_size": 2,
-            "out_size": None,
-            "n_layers": 4,
-            "hidden_size": 256,
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
             "input_scale": 128.0,
             "weight_scale": 1.0,
             "alpha": 6.0,
@@ -157,20 +157,17 @@ BASE_SPECS = {
 # Optional overrides per task (e.g. image vs video)
 # ----------------------------------------------------------------------------
 OVERRIDE_SPECS = {
-    "image": {
-        "mlp": dict(lr=1e-3, kwargs={}),
-        "siren": dict(lr=5e-5, kwargs={}),
-        "gabornet": dict(lr=1e-2, kwargs={}),
-        "fouriernet": dict(lr=1e-2, kwargs={}),
-        "mfnwaveletnet": dict(lr=1e-3, kwargs={}),
-        "waveletnet": dict(lr=1e-3, kwargs={}),
-        "wire": dict(lr=1e-3, kwargs={}),
-        "finer": dict(lr=1e-4, kwargs={}),
-        "frinr": dict(lr=1e-4, kwargs={}),
-    },
+    "image": {},
     "video": {
-        "mlp": dict(lr=5e-4, kwargs={"n_hidden_units": 128}),
-        "siren": dict(lr=1e-4, kwargs={"hidden_features": 128}),
+        "mlp": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "siren": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "fouriernet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "mfnwaveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "waveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "wire": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "finer": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "frinr": dict(kwargs={"in_features": 3, "hidden_features": 512}),
     },
 }
 
@@ -180,22 +177,21 @@ OVERRIDE_SPECS = {
 def build_model(model_type: str,
                 task: str,
                 channels: int,
-                device="cuda"):
+                device: str = "cuda"):
+    # Validate model type and task
     if model_type not in BASE_SPECS:
         raise ValueError(f"Unknown model: {model_type!r}")
+    if task not in OVERRIDE_SPECS:
+        raise ValueError(f"Unknown task: {task!r}")
+    
     base = BASE_SPECS[model_type]
     overrides = OVERRIDE_SPECS.get(task, {}).get(model_type, {})
 
     lr = overrides.get("lr", base.lr)
     kwargs = {**base.kwargs, **overrides.get("kwargs", {})}
 
-    # Fill dynamic output size fields
-    if "n_out" in kwargs and kwargs["n_out"] is None:
-        kwargs["n_out"] = channels
-    if "out_features" in kwargs and kwargs["out_features"] is None:
+    if kwargs["out_features"] is None:
         kwargs["out_features"] = channels
-    if "out_size" in kwargs and kwargs["out_size"] is None:
-        kwargs["out_size"] = channels
 
     model = base.cls(**kwargs).to(device)
     return model, lr
