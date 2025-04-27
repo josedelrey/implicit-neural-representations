@@ -21,17 +21,18 @@ def main():
         torch.cuda.manual_seed_all(seed)
 
     # Parameters
-    sidelength = 256
+    task = 'image'
+    image_path = 'images/cameraman.png'
     is_rgb = False
+    sidelength = 256
     channels = 3 if is_rgb else 1
     total_steps = 1000
     log_interval = 10
     chunk_size = 4096
     model_type = 'mfnwaveletnet'
-    task = 'image'
 
     # Data
-    dataset  = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
+    dataset  = ImageDataset(sidelength, path=image_path, channels=channels)
     loader   = DataLoader(dataset, batch_size=1, pin_memory=(device.type == 'cuda'), num_workers=0)
     height, width = dataset.height, dataset.width
 
