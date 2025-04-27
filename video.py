@@ -3,14 +3,14 @@ import numpy as np
 import torch
 
 from modules.dataset import VideoDataset
-from modules.mlp import MLP
-from modules.siren import Siren
-from modules.mfn import FourierNet, GaborNet, MFNWaveletNet
-from modules.wavelet import WaveletNet
-from modules.wire import WIRE
-from modules.finer import Finer
-from modules.frinr import FRINR
 from modules.loss import mse_to_psnr
+from models.mlp import MLP
+from models.siren import Siren
+from models.mfn import FourierNet, GaborNet, MFNWaveletNet
+from models.wavelet import WaveletNet
+from models.wire import WIRE
+from models.finer import Finer
+from models.frinr import FRINR
 
 def main():
     # Set seed for reproducibility
