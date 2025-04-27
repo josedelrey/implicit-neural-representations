@@ -9,11 +9,15 @@ from models.model_factory import build_model
 
 
 def main():
+    # Device configuration
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {torch.cuda.get_device_name(0) if device == 'cuda' else 'CPU'}")
+
     # Reproducibility
     seed = 42
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
+    if device.type == 'cuda':
         torch.cuda.manual_seed_all(seed)
 
     # Parameters
@@ -28,16 +32,16 @@ def main():
 
     # Data
     dataset  = ImageDataset(sidelength, path='images/cameraman.png', channels=channels)
-    loader   = DataLoader(dataset, batch_size=1, pin_memory=True, num_workers=0)
+    loader   = DataLoader(dataset, batch_size=1, pin_memory=(device.type == 'cuda'), num_workers=0)
     height, width = dataset.height, dataset.width
 
     # Model and optimizer
-    model, learning_rate = build_model(model_type, task, channels, device='cuda')
+    model, learning_rate = build_model(model_type, task, channels, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training loop
     coords, pixels = next(iter(loader))
-    coords, pixels = coords.cuda(), pixels.cuda()
+    coords, pixels = coords.to(device), pixels.to(device)
     for step in range(total_steps + 1):
         coords_squeezed = coords.squeeze(0)
         preds = model(coords_squeezed)
@@ -52,7 +56,7 @@ def main():
     # Evaluation
     model.eval()
     with torch.no_grad():
-        full_uv = dataset.coords.cuda()
+        full_uv = dataset.coords.to(device)
         predictions = []
         for i in range(0, full_uv.shape[0], chunk_size):
             predictions.append(model(full_uv[i:i+chunk_size]))
