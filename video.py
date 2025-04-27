@@ -20,16 +20,16 @@ def main():
         torch.cuda.manual_seed_all(seed)
 
     # Parameters
-    sidelength = 256
+    task = 'video'
+    video_path = 'videos/akiyo_cif.y4m'
     is_rgb = True
+    sidelength = 256
     channels = 3 if is_rgb else 1
     total_steps = 10000
     log_interval = 10
     batch_size = 32768
     chunk_size = 1024
     model_type = 'gabornet'
-    task = 'video'
-    video_path = 'videos/akiyo_cif.y4m'
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)
