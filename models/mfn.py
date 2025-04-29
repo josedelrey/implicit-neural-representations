@@ -162,67 +162,40 @@ class GaborNet(MFNBase):
 
 class WaveletLayer(nn.Module):
     """
-    WaveletLayer: A wavelet filter layer analogous to FourierLayer and GaborLayer.
+    GaborLayer: Gabor-like filter as used in GaborNet.
     
-    It applies a linear projection followed by a Morlet wavelet nonlinearity,
-    modulated by a Gaussian envelope based on the distance between the input and a
-    learned center (mu). The envelope uses a learned gamma parameter.
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
     """
     def __init__(self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0, omega0=5.0):
         super().__init__()
-        # Linear projection of the input
         self.linear = nn.Linear(in_features, out_features)
-        # Learned center for each filter
         self.mu = nn.Parameter(2 * torch.rand(out_features, in_features) - 1)
-        # Learned gamma values controlling the envelope width
-        self.gamma = nn.Parameter(torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,)))
-        # Scale the linear weights by weight_scale and sqrt(gamma)
+        self.gamma = nn.Parameter(
+            torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,))
+        )
+        self.omega0 = omega0
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
         self.linear.bias.data.uniform_(-np.pi, np.pi)
-        # Learnable frequency parameter for the Morlet wavelet
-        self.omega0 = omega0
-    
-    def morlet_wavelet(self, u):
-        """
-        Applies the Morlet wavelet nonlinearity:
-            ψ(u) = cos(ω₀ * u) - exp(-0.5 * ω₀²)
-        """
-        omega0_tensor = torch.tensor(self.omega0, dtype=u.dtype, device=u.device)
-        constant = torch.exp(torch.tensor(-0.5 * (self.omega0 ** 2), dtype=u.dtype, device=u.device))
-        return torch.cos(omega0_tensor * u) - constant
-    
-    def forward(self, x):
-        # Compute squared Euclidean distance between x and the learned center μ.
-        # x shape: (batch, in_features), mu shape: (out_features, in_features)
-        D = (x ** 2).sum(dim=1, keepdim=True) + (self.mu ** 2).sum(dim=1).unsqueeze(0) - 2 * x @ self.mu.T
-        # Compute the Gaussian envelope using the learned gamma
-        envelope = torch.exp(-0.5 * D * self.gamma.unsqueeze(0))
-        # Linear projection followed by the Morlet wavelet nonlinearity
-        lin_out = self.linear(x)
-        wavelet_response = self.morlet_wavelet(lin_out)
-        return wavelet_response * envelope
-    
+        return
 
-class MFNWaveletNet(MFNBase):
+    def forward(self, x):
+        D = (
+            (x ** 2).sum(-1)[..., None]
+            + (self.mu ** 2).sum(-1)[None, :]
+            - 2 * x @ self.mu.T
+        )
+        return torch.sin(self.linear(self.omega0 * x)) * torch.exp(-0.5 * D * self.gamma[None, :])
+
+
+class WaveletNet(MFNBase):
     """
-    MFNWaveletNet: A multiplicative filter network using wavelet filters.
+    GaborNet: Network using GaborLayer filters.
     
-    This network follows the same architectural design as FourierNet and GaborNet,
-    where a ModuleList of filters is applied multiplicatively with intermediate linear
-    transformations. Each filter is a WaveletLayer.
-    
-    Args:
-        in_size (int): Dimensionality of input features.
-        hidden_size (int): Dimensionality of the hidden feature space.
-        out_size (int): Dimensionality of the output.
-        n_layers (int): Number of hidden layers (filters) to use.
-        input_scale (float): Scale factor for the filter initialization.
-        weight_scale (float): Scale factor for linear weight initialization.
-        alpha (float): Parameter for the Gamma distribution (controls envelope width).
-        beta (float): Rate parameter for the Gamma distribution.
-        omega0 (float): Frequency parameter for the Morlet wavelet.
-        bias (bool): Whether to use bias in the linear layers.
-        output_act (bool): Whether to apply sine activation to the output.
+    This is the original implementation from "Multiplicative Filter Networks"
+    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021).
+    See: https://github.com/boschresearch/multiplicative-filter-networks/
     """
     def __init__(
         self,
@@ -238,7 +211,9 @@ class MFNWaveletNet(MFNBase):
         bias=True,
         output_act=False,
     ):
-        super().__init__(hidden_features, out_features, hidden_layers, weight_scale, bias, output_act)
+        super().__init__(
+            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
+        )
         self.filters = nn.ModuleList(
             [
                 WaveletLayer(
@@ -247,27 +222,8 @@ class MFNWaveletNet(MFNBase):
                     input_scale / np.sqrt(hidden_layers + 1),
                     alpha / (hidden_layers + 1),
                     beta,
-                    omega0,
+                    omega0
                 )
                 for _ in range(hidden_layers + 1)
             ]
         )
-        # Create normalization layers for each branch before multiplication:
-        # One for each filter output (n_layers + 1) and one for each linear branch (n_layers).
-        self.filter_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)])
-        self.linear_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers)])
-        
-    def forward(self, x):
-        # Apply the first filter and normalize its output.
-        out = self.filter_norms[0](self.filters[0](x))
-        # For subsequent filters, normalize both the filter and linear branch outputs before multiplying.
-        for i in range(1, len(self.filters)):
-            filter_out = self.filters[i](x)
-            filter_out = self.filter_norms[i](filter_out)
-            linear_out = self.linear[i - 1](out)
-            linear_out = self.linear_norms[i - 1](linear_out)
-            out = filter_out * linear_out
-        out = self.output_linear(out)
-        if self.output_act:
-            out = torch.sin(out)
-        return out

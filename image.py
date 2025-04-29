@@ -11,7 +11,7 @@ from models.model_factory import build_model
 def main():
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {torch.cuda.get_device_name(0) if device == 'cuda' else 'CPU'}")
+    print(f"Using device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
 
     # Reproducibility
     seed = 42
@@ -29,7 +29,7 @@ def main():
     total_steps = 1000
     log_interval = 10
     chunk_size = 4096
-    model_type = 'mfnwaveletnet'
+    model_type = 'waveletnet'
 
     # Data
     dataset  = ImageDataset(sidelength, path=image_path, channels=channels)

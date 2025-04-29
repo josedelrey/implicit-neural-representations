@@ -2,8 +2,8 @@ from collections import namedtuple
 
 from models.mlp import MLP
 from models.siren import Siren
-from models.mfn import FourierNet, GaborNet, MFNWaveletNet
-from models.wavelet import WaveletNet
+from models.mfn import FourierNet, GaborNet, WaveletNet
+from models.experiment import Experiment
 from models.wire import WIRE
 from models.finer import Finer
 from models.frinr import FRINR
@@ -42,6 +42,20 @@ BASE_SPECS = {
             "hidden_omega_0": 30,
         },
     ),
+    "fouriernet": ModelSpec(
+        cls=FourierNet,
+        lr=1e-2,
+        kwargs={
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
+            "input_scale": 256.0,
+            "weight_scale": 1.0,
+            "bias": True,
+            "output_act": False,
+        },
+    ),
     "gabornet": ModelSpec(
         cls=GaborNet,
         lr=1e-2,
@@ -58,22 +72,8 @@ BASE_SPECS = {
             "output_act": False,
         },
     ),
-    "fouriernet": ModelSpec(
-        cls=FourierNet,
-        lr=1e-2,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 256.0,
-            "weight_scale": 1.0,
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "mfnwaveletnet": ModelSpec(
-        cls=MFNWaveletNet,
+    "waveletnet": ModelSpec(
+        cls=WaveletNet,
         lr=1e-3,
         kwargs={
             "in_features": 2,
@@ -85,17 +85,25 @@ BASE_SPECS = {
             "alpha": 6.0,
             "beta": 1.0,
             "omega0": 5.0,
+            "bias": True,
+            "output_act": False,
         },
     ),
-    "waveletnet": ModelSpec(
-        cls=WaveletNet,
+    "experiment": ModelSpec(
+        cls=Experiment,
         lr=1e-3,
         kwargs={
             "in_features": 2,
             "out_features": None,
             "hidden_layers": 4,
             "hidden_features": 256,
+            "input_scale": 128.0,
+            "weight_scale": 1.0,
+            "alpha": 6.0,
+            "beta": 1.0,
             "omega0": 5.0,
+            "bias": True,
+            "output_act": False,
         },
     ),
     "wire": ModelSpec(
@@ -164,7 +172,7 @@ OVERRIDE_SPECS = {
         "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "fouriernet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "mfnwaveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "waveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "experiment": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "wire": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "finer": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "frinr": dict(kwargs={"in_features": 3, "hidden_features": 512}),
