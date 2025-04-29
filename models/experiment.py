@@ -162,40 +162,54 @@ class GaborNet(MFNBase):
 
 class WaveletLayer(nn.Module):
     """
-    GaborLayer: Gabor-like filter as used in GaborNet.
+    WaveletLayer: A wavelet filter layer analogous to FourierLayer and GaborLayer.
     
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    It applies a linear projection followed by a Morlet wavelet nonlinearity,
+    modulated by a Gaussian envelope based on the distance between the input and a
+    learned center (mu). The envelope uses a learned gamma parameter.
     """
     def __init__(self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0, omega0=5.0):
         super().__init__()
+        # Linear projection of the input
         self.linear = nn.Linear(in_features, out_features)
+        # Learned center for each filter
         self.mu = nn.Parameter(2 * torch.rand(out_features, in_features) - 1)
-        self.gamma = nn.Parameter(
-            torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,))
-        )
-        self.omega0 = omega0
+        # Learned gamma values controlling the envelope width
+        self.gamma = nn.Parameter(torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,)))
+        # Scale the linear weights by weight_scale and sqrt(gamma)
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
         self.linear.bias.data.uniform_(-np.pi, np.pi)
-        return
-
-    def forward(self, x):
-        D = (
-            (x ** 2).sum(-1)[..., None]
-            + (self.mu ** 2).sum(-1)[None, :]
-            - 2 * x @ self.mu.T
-        )
-        return torch.sin(self.linear(self.omega0 * x)) * torch.exp(-0.5 * D * self.gamma[None, :])
-
-
-class WaveletNet(MFNBase):
-    """
-    GaborNet: Network using GaborLayer filters.
+        # Learnable frequency parameter for the Morlet wavelet
+        self.omega0 = omega0
     
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021).
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    def morlet_wavelet(self, u):
+        """
+        Applies the Morlet wavelet nonlinearity:
+            ψ(u) = cos(ω₀ * u)
+        """
+        omega0_tensor = torch.tensor(self.omega0, dtype=u.dtype, device=u.device)
+        return torch.cos(omega0_tensor * u)
+    
+    def forward(self, x):
+        # Compute squared Euclidean distance between x and the learned center μ.
+        # x shape: (batch, in_features), mu shape: (out_features, in_features)
+        D = (x ** 2).sum(dim=1, keepdim=True) + (self.mu ** 2).sum(dim=1).unsqueeze(0) - 2 * x @ self.mu.T
+        # Compute the Gaussian envelope using the learned gamma
+        envelope = torch.exp(-0.5 * D * self.gamma.unsqueeze(0))
+        # Linear projection followed by the Morlet wavelet nonlinearity
+        lin_out = self.linear(x)
+        wavelet_response = self.morlet_wavelet(lin_out)
+        return wavelet_response * envelope
+    
+
+class Experiment(MFNBase):
+    """
+    MFNWaveletNet: A multiplicative filter network using wavelet filters.
+
+    This variant follows the same structure as FourierNet and GaborNet,
+    utilizing MFNBase's forward pass logic without any normalization layers.
+    Each filter is a WaveletLayer, and outputs are combined multiplicatively
+    via MFNBase.forward.
     """
     def __init__(
         self,
@@ -212,17 +226,23 @@ class WaveletNet(MFNBase):
         output_act=False,
     ):
         super().__init__(
-            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
+            hidden_size=hidden_features,
+            out_size=out_features,
+            n_layers=hidden_layers,
+            weight_scale=weight_scale,
+            bias=bias,
+            output_act=output_act,
         )
+        # Create wavelet filters for each layer
         self.filters = nn.ModuleList(
             [
                 WaveletLayer(
-                    in_features,
-                    hidden_features,
-                    input_scale / np.sqrt(hidden_layers + 1),
-                    alpha / (hidden_layers + 1),
-                    beta,
-                    omega0
+                    in_features=in_features,
+                    out_features=hidden_features,
+                    weight_scale=input_scale / np.sqrt(hidden_layers + 1),
+                    alpha=alpha / (hidden_layers + 1),
+                    beta=beta,
+                    omega0=omega0,
                 )
                 for _ in range(hidden_layers + 1)
             ]
