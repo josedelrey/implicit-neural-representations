@@ -29,7 +29,7 @@ def main():
     log_interval = 10
     batch_size = 32768
     chunk_size = 1024
-    model_type = 'gabornet'
+    model_type = 'experiment'
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)
