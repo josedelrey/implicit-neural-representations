@@ -2,8 +2,7 @@ from collections import namedtuple
 
 from models.mlp import MLP
 from models.siren import Siren
-from models.mfn import FourierNet, GaborNet, WaveletNet
-from models.experiment import Experiment
+from models.mfn import FourierNet, GaborNet, WaveletNet, WaveletNetNormalized
 from models.wire import WIRE
 from models.finer import Finer
 from models.frinr import FRINR
@@ -89,8 +88,8 @@ BASE_SPECS = {
             "output_act": False,
         },
     ),
-    "experiment": ModelSpec(
-        cls=Experiment,
+    "waveletnetnormalized": ModelSpec(
+        cls=WaveletNetNormalized,
         lr=1e-3,
         kwargs={
             "in_features": 2,
@@ -169,10 +168,10 @@ OVERRIDE_SPECS = {
     "video": {
         "mlp": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "siren": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "fouriernet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "mfnwaveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "experiment": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "waveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
+        "waveletnetnormalized": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "wire": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "finer": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "frinr": dict(kwargs={"in_features": 3, "hidden_features": 512}),
