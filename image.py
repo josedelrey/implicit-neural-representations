@@ -29,7 +29,7 @@ def main():
     total_steps = 1000
     log_interval = 10
     chunk_size = 4096
-    model_type = 'waveletnet'
+    model_type = 'experiment'
 
     # Data
     dataset  = ImageDataset(sidelength, path=image_path, channels=channels)
