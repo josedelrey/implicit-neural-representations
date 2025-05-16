@@ -29,7 +29,7 @@ def main():
     log_interval = 10
     batch_size = 32768
     chunk_size = 1024
-    model_type = 'waveletnetnormalized' # 28.5 PSNR for gabornet
+    model_type = 'vectorwaveletnetnormalized' # 28.5 PSNR for gabornet
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)

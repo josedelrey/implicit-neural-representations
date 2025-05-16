@@ -2,7 +2,8 @@ from collections import namedtuple
 
 from models.mlp import MLP
 from models.siren import Siren
-from models.mfn import FourierNet, GaborNet, WaveletNet, WaveletNetNormalized
+from models.mfn import FourierNet, GaborNet
+from models.mfn import WaveletNet, WaveletNetNormalized, VectorWaveletNetNormalized
 from models.wire import WIRE
 from models.finer import Finer
 from models.frinr import FRINR
@@ -105,9 +106,26 @@ BASE_SPECS = {
             "output_act": False,
         },
     ),
+    "vectorwaveletnetnormalized": ModelSpec(
+        cls=VectorWaveletNetNormalized,
+        lr=1e-3,
+        kwargs={
+            "in_features": 2,
+            "out_features": None,
+            "hidden_layers": 4,
+            "hidden_features": 256,
+            "input_scale": 128.0,
+            "weight_scale": 1.0,
+            "alpha": 6.0,
+            "beta": 1.0,
+            "omega0": [0.5, 5.0, 5.0],
+            "bias": True,
+            "output_act": False,
+        },
+    ),
     "wire": ModelSpec(
         cls=WIRE,
-        lr=1e-3,
+        lr=2e-2,
         kwargs={
             "in_features": 2,
             "out_features": None,
@@ -172,6 +190,7 @@ OVERRIDE_SPECS = {
         "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "waveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512, "omega0": 0.8}),
         "waveletnetnormalized": dict(kwargs={"in_features": 3, "hidden_features": 512, "omega0": 0.8}),
+        "vectorwaveletnetnormalized": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "wire": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "finer": dict(kwargs={"in_features": 3, "hidden_features": 512}),
         "frinr": dict(kwargs={"in_features": 3, "hidden_features": 512}),
