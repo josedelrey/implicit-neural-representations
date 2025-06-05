@@ -1,12 +1,15 @@
 import argparse
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from modules.dataset import VideoDataset
 from modules.loss import mse_to_psnr
 from models.model_factory import build_model
-from modules.utils import parse_config
+from modules.utils import parse_config, log_training_metrics
 
 
 def main():
@@ -44,11 +47,7 @@ def main():
     log_interval = int(config.get('log_interval', '10'))
     batch_size = int(config.get('batch_size', '32768'))
     chunk_size = int(config.get('chunk_size', '1024'))
-    model_type = config.get('model_type', 'vectorwaveletnetnormalized')  # 28.5 PSNR for gabornet
-                                                                         # 30.69 PSNR for [0.5, 5.0, 5.0]
-                                                                         # 30.32 PSNR for [1.0, 5.0, 5.0]
-                                                                         # 28.32 PSNR for [0.1, 5.0, 5.0]
-                                                                         # 30.60 PSNR for [0.7, 5.0, 5.0]
+    model_type = config.get('model_type', 'vectorwaveletnetnormalized')
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)
@@ -61,7 +60,12 @@ def main():
     model, learning_rate = build_model(model_type, task, channels, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    # TensorBoard writer
+    writer = SummaryWriter()
+    writer.add_text('config', str(config))
+
     # Training loop
+    start_time = datetime.datetime.now()
     for step in range(total_steps + 1):
         optimizer.zero_grad()
         indices = torch.randint(0, num_coords, (batch_size,), device=coords.device)
@@ -73,7 +77,7 @@ def main():
         optimizer.step()
 
         if step % log_interval == 0:
-            print(f"Step {step}, Loss {loss.item():.6f}, PSNR {mse_to_psnr(loss.item()):.6f}")
+            log_training_metrics(step, loss, start_time, writer)
 
     # Evaluation
     model.eval()
@@ -105,6 +109,8 @@ def main():
         plt.title("Reconstructed First Frame")
     plt.axis('off')
     plt.show()
+
+    writer.close()
 
 
 if __name__ == '__main__':
