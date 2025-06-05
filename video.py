@@ -30,6 +30,10 @@ def main():
     batch_size = 32768
     chunk_size = 1024
     model_type = 'vectorwaveletnetnormalized' # 28.5 PSNR for gabornet
+                                              # 30.69 PSNR for [0.5, 5.0, 5.0]
+                                              # 30.32 PSNR for [1.0, 5.0, 5.0]
+                                              # 28.32 PSNR for [0.1, 5.0, 5.0]
+                                              # 30.60 PSNR for [0.7, 5.0, 5.0]
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)

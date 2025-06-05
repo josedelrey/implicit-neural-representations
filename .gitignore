@@ -1,17 +1,20 @@
 # Ignore __pycache__ directories
-__pycache__/
+__pycache__
 
 # Ignore test images
-images/
+images
 
 # Ignore test videos
-videos/
+videos
 
 # Ignore logs
-logs/
+logs
 
 # Ignore model graveyard
-graveyard/
+graveyard
 
 # Ignore notes
 notes.txt
+
+# Ignore aux_scripts folder
+aux_scripts
