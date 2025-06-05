@@ -1,0 +1,23 @@
+# Task type
+task = image
+
+# Path to input image
+image_path = images/cameraman.png
+
+# Whether the image is RGB (True/False)
+is_rgb = False
+
+# Side length to crop/resize the image to
+sidelength = 256
+
+# Total number of training steps
+total_steps = 1000
+
+# How often (in steps) to print training logs
+log_interval = 10
+
+# Chunk size used during full-image evaluation/rendering
+chunk_size = 4096
+
+# Which model to use
+model_type = waveletnetnormalized

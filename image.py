@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -6,9 +7,24 @@ from torch.utils.data import DataLoader
 from modules.dataset import ImageDataset
 from modules.loss import mse_to_psnr
 from models.model_factory import build_model
+from modules.utils import parse_config
 
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Run the image regression experiment. "
+                    "Parameters are loaded from a config file."
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to configuration file (each line: key = value)"
+    )
+    args = parser.parse_args()
+    config = parse_config(args.config)
+
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
@@ -21,15 +37,17 @@ def main():
         torch.cuda.manual_seed_all(seed)
 
     # Parameters
-    task = 'image'
-    image_path = 'images/cameraman.png'
-    is_rgb = False
-    sidelength = 256
+    task = config.get('task', 'image')
+    image_path = config.get('image_path', 'images/cameraman.png')
+    
+    is_rgb = config.get('is_rgb', 'False').lower() == 'true'
+    sidelength = int(config.get('sidelength', '256'))
     channels = 3 if is_rgb else 1
-    total_steps = 1000
-    log_interval = 10
-    chunk_size = 4096
-    model_type = 'waveletnetnormalized'
+
+    total_steps = int(config.get('total_steps', '1000'))
+    log_interval = int(config.get('log_interval', '10'))
+    chunk_size = int(config.get('chunk_size', '4096'))
+    model_type = config.get('model_type', 'waveletnetnormalized')
 
     # Data
     dataset  = ImageDataset(sidelength, path=image_path, channels=channels)
@@ -64,13 +82,14 @@ def main():
         preds_all = torch.cat(predictions, dim=0).cpu().numpy()
 
     # Visualization
-    image = preds_all.reshape(height, width, channels) if channels==3 else preds_all.reshape(height, width)
+    image = preds_all.reshape(height, width, channels) if channels == 3 else preds_all.reshape(height, width)
     image = (image + 1) / 2
-    plt.figure(figsize=(6,6))
-    plt.imshow(image, cmap=None if channels==3 else 'gray')
+    plt.figure(figsize=(6, 6))
+    plt.imshow(image, cmap=None if channels == 3 else 'gray')
     plt.title("Reconstructed Image")
     plt.axis('off')
     plt.show()
+
 
 if __name__ == '__main__':
     main()
