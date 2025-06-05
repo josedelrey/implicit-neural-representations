@@ -1,0 +1,26 @@
+# Task type
+task = video
+
+# Path to input video
+image_path = videos/akiyo_cif.y4m
+
+# Whether the video is RGB (True/False)
+is_rgb = True
+
+# Side length to crop/resize the video to
+sidelength = 256
+
+# Total number of training steps
+total_steps = 10000
+
+# How often (in steps) to print training logs
+log_interval = 10
+
+# Batch size for random sampling
+batch_size = 32768
+
+# Chunk size used during full-video evaluation/rendering
+chunk_size = 4096
+
+# Which model to use
+model_type = vectorwaveletnetnormalized
