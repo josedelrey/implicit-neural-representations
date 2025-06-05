@@ -1,13 +1,14 @@
 import argparse
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from modules.dataset import ImageDataset
-from modules.loss import mse_to_psnr
 from models.model_factory import build_model
-from modules.utils import parse_config
+from modules.utils import parse_config, log_training_metrics
 
 
 def main():
@@ -50,27 +51,34 @@ def main():
     model_type = config.get('model_type', 'waveletnetnormalized')
 
     # Data
-    dataset  = ImageDataset(sidelength, path=image_path, channels=channels)
-    loader   = DataLoader(dataset, batch_size=1, pin_memory=(device.type == 'cuda'), num_workers=0)
+    dataset = ImageDataset(sidelength, path=image_path, channels=channels)
+    loader = DataLoader(dataset, batch_size=1, pin_memory=(device.type == 'cuda'), num_workers=0)
     height, width = dataset.height, dataset.width
 
     # Model and optimizer
     model, learning_rate = build_model(model_type, task, channels, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    # TensorBoard writer
+    writer = SummaryWriter()
+    writer.add_text('config', str(config))
+
     # Training loop
     coords, pixels = next(iter(loader))
     coords, pixels = coords.to(device), pixels.to(device)
+
+    start_time = datetime.datetime.now()
     for step in range(total_steps + 1):
         coords_squeezed = coords.squeeze(0)
         preds = model(coords_squeezed)
         loss = ((preds - pixels) ** 2).mean()
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         if step % log_interval == 0:
-            print(f"Step {step}, Loss {loss.item():.6f}, PSNR {mse_to_psnr(loss.item()):.6f}")
+            log_training_metrics(step, loss, start_time, writer)
 
     # Evaluation
     model.eval()
@@ -82,13 +90,19 @@ def main():
         preds_all = torch.cat(predictions, dim=0).cpu().numpy()
 
     # Visualization
-    image = preds_all.reshape(height, width, channels) if channels == 3 else preds_all.reshape(height, width)
+    image = (
+        preds_all.reshape(height, width, channels)
+        if channels == 3
+        else preds_all.reshape(height, width)
+    )
     image = (image + 1) / 2
     plt.figure(figsize=(6, 6))
     plt.imshow(image, cmap=None if channels == 3 else 'gray')
     plt.title("Reconstructed Image")
     plt.axis('off')
     plt.show()
+
+    writer.close()
 
 
 if __name__ == '__main__':
