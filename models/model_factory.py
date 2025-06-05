@@ -118,7 +118,7 @@ BASE_SPECS = {
             "weight_scale": 1.0,
             "alpha": 6.0,
             "beta": 1.0,
-            "omega0": [0.5, 5.0, 5.0],
+            "omega0": [0.7, 5.0, 5.0],
             "bias": True,
             "output_act": False,
         },
