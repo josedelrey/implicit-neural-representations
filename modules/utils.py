@@ -45,15 +45,13 @@ def format_elapsed_time(start_time: datetime.datetime) -> str:
     )
 
 
-def log_training_metrics(step, scheduler, loss, start_time, writer):
+def log_training_metrics(step, loss, start_time, writer):
     """
     Log training metrics.
     """
-    current_lr = scheduler.get_last_lr()[0]
     elapsed_str = format_elapsed_time(start_time)
-    log_message = (f"[{elapsed_str}] [Iter {step:07d}] LR: {current_lr:.6f} "
+    log_message = (f"[{elapsed_str}] [Iter {step:07d}]"
                    f"MSE: {loss.item():.4f} PSNR: {mse_to_psnr(loss.item()):.2f}")
     tqdm.write(log_message)
     writer.add_scalar('loss', loss.item(), step)
     writer.add_scalar('psnr', mse_to_psnr(loss.item()), step)
-    writer.add_scalar('learning_rate', current_lr, step)
