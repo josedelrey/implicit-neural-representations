@@ -11,7 +11,7 @@ is_rgb = True
 sidelength = 256
 
 # Total number of training steps
-total_steps = 10000
+total_steps = 200
 
 # How often (in steps) to print training logs
 log_interval = 10
