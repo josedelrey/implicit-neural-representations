@@ -1,3 +1,4 @@
+import os
 import argparse
 import datetime
 import matplotlib.pyplot as plt
@@ -40,7 +41,8 @@ def main():
     # Parameters
     task = config.get('task', 'image')
     image_path = config.get('image_path', 'images/cameraman.png')
-    
+    export_path = config.get('export_path', 'reconstructed.png')  # NEW
+
     is_rgb = config.get('is_rgb', 'False').lower() == 'true'
     sidelength = int(config.get('sidelength', '256'))
     channels = 3 if is_rgb else 1
@@ -89,18 +91,22 @@ def main():
             predictions.append(model(full_uv[i:i+chunk_size]))
         preds_all = torch.cat(predictions, dim=0).cpu().numpy()
 
-    # Visualization
+    # Reconstruct image buffer
     image = (
         preds_all.reshape(height, width, channels)
         if channels == 3
         else preds_all.reshape(height, width)
     )
-    image = (image + 1) / 2
-    plt.figure(figsize=(6, 6))
-    plt.imshow(image, cmap=None if channels == 3 else 'gray')
-    plt.title("Reconstructed Image")
-    plt.axis('off')
-    plt.show()
+    image = (image + 1) / 2  # normalize to [0,1]
+
+    # Ensure output directory exists
+    export_dir = os.path.dirname(export_path)
+    if export_dir != "":
+        os.makedirs(export_dir, exist_ok=True)
+
+    # Always export the reconstructed PNG (no visualization)
+    plt.imsave(export_path, image, cmap=None if channels == 3 else 'gray')
+    print(f"Reconstructed image saved to: {export_path}")
 
     writer.close()
 
