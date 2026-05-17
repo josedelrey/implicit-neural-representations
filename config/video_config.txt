@@ -2,7 +2,7 @@
 task = video
 
 # Path to input video
-image_path = videos/akiyo_cif.y4m
+video_path = videos/akiyo_cif.y4m
 
 # Whether the video is RGB (True/False)
 is_rgb = True

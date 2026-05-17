@@ -1,0 +1,9 @@
+torch>=2.2
+torchvision>=0.17
+numpy>=1.26
+matplotlib>=3.8
+Pillow>=10.0
+imageio>=2.34
+imageio-ffmpeg>=0.4.9
+tensorboard>=2.16
+tqdm>=4.66
