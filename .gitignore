@@ -9,6 +9,7 @@ videos
 
 # Ignore logs
 logs
+runs/
 
 # Ignore model graveyard
 graveyard
