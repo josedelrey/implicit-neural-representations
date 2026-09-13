@@ -44,6 +44,10 @@ class SignalDataTests(unittest.TestCase):
         self.assertEqual(video.coordinate_order, ('t', 'y', 'x'))
         self.assertEqual(image.value_range, (-1.0, 1.0))
         self.assertEqual(video.value_range, image.value_range)
+        np.testing.assert_allclose(
+            image.to_unit_range(np.array([-1.0, 0.0, 1.0])),
+            [0.0, 0.5, 1.0],
+        )
         self.assertEqual(image.coords.shape, (24, 2))
         self.assertEqual(video.coords.shape, (48, 3))
         self.assertEqual(image.pixels.shape, (24, 3))

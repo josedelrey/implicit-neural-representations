@@ -23,4 +23,6 @@ uv run --locked video.py --config config/video_config.txt
 
 Edit the config files to choose the input path and model. Image reconstructions are written to the configured `export_path`; training metrics are written to TensorBoard's `runs/` directory. The video script displays its reconstructed first frame.
 
+Pixel values are normalized to `[-1, 1]` during fitting. PSNR uses that two-unit value range, and reconstructions are mapped to `[0, 1]` for saving or display.
+
 To change dependencies, edit `pyproject.toml` (or use `uv add`) and regenerate `uv.lock` with `uv lock`.
