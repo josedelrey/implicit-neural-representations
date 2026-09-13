@@ -11,6 +11,14 @@ from modules.utils import log_training_metrics
 Sampling = Literal['full', 'random']
 
 
+def _model_device(model: torch.nn.Module, fallback: torch.device) -> torch.device:
+    parameter = next(model.parameters(), None)
+    if parameter is not None:
+        return parameter.device
+    buffer = next(model.buffers(), None)
+    return buffer.device if buffer is not None else fallback
+
+
 def fit(
     model: torch.nn.Module,
     coords: torch.Tensor,
@@ -43,14 +51,20 @@ def fit(
     else:
         raise ValueError(f'Unknown sampling mode: {sampling!r}')
 
+    device = _model_device(model, coords.device)
+    if sampling == 'full':
+        full_coords = coords.to(device)
+        full_pixels = pixels.to(device)
+
     model.train()
     start_time = datetime.datetime.now()
     for step in range(1, total_steps + 1):
         if sampling == 'random':
             indices = torch.randint(0, coords.shape[0], (batch_size,), device=coords.device)
-            batch_coords, batch_pixels = coords[indices], pixels[indices]
+            batch_coords = coords[indices].to(device)
+            batch_pixels = pixels[indices].to(device)
         else:
-            batch_coords, batch_pixels = coords, pixels
+            batch_coords, batch_pixels = full_coords, full_pixels
 
         optimizer.zero_grad()
         predictions = model(batch_coords)
@@ -71,9 +85,10 @@ def predict_chunks(model: torch.nn.Module, coords: torch.Tensor, chunk_size: int
     if coords.ndim != 2 or coords.shape[0] == 0:
         raise ValueError('coords must be a non-empty [N, features] tensor')
 
+    device = _model_device(model, coords.device)
     model.eval()
     with torch.no_grad():
         return torch.cat([
-            model(coords[start:start + chunk_size]).cpu()
+            model(coords[start:start + chunk_size].to(device)).cpu()
             for start in range(0, coords.shape[0], chunk_size)
         ], dim=0)
