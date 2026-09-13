@@ -1,24 +1,9 @@
-# Ignore __pycache__ directories
-__pycache__
+__pycache__/
+*.py[cod]
+.venv/
 
-# Ignore test images
-images
-
-# Ignore test videos
-videos
-
-# Ignore logs
-logs
-runs/
-
-# Ignore model graveyard
-graveyard
-
-# Ignore notes
-notes.txt
-
-# Ignore aux_scripts folder
-aux_scripts
-
-# Outputs
-outputs
+/images/
+/videos/
+/logs/
+/runs/
+/outputs/
