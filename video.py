@@ -5,12 +5,11 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+from modules.config import load_experiment_config
 from modules.dataset import load_video_signal
 from modules.loss import mse_to_psnr
 from modules.training import fit, predict_chunks
 from models.model_factory import build_model
-from models.presets import resolve_model_preset
-from modules.utils import parse_config
 
 
 def main():
@@ -22,74 +21,54 @@ def main():
         "--config",
         type=str,
         required=True,
-        help="Path to configuration file (each line: key = value)"
+        help="Path to the experiment YAML file"
     )
     args = parser.parse_args()
-    config = parse_config(args.config)
+    config = load_experiment_config(args.config, task='video')
 
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
 
     # Reproducibility
-    seed = 42
+    seed = config.seed
     np.random.seed(seed)
     torch.manual_seed(seed)
     if device.type == 'cuda':
         torch.cuda.manual_seed_all(seed)
 
-    # Parameters (loaded from config, with fallbacks)
-    task = config.get('task', 'video')
-    video_path = config.get('video_path', 'videos/akiyo_cif.y4m')
-    is_rgb = config.get('is_rgb', 'True').lower() == 'true'
-    sidelength = int(config.get('sidelength', '256'))
-    channels = 3 if is_rgb else 1
-    total_steps = int(config.get('total_steps', '10000'))
-    log_interval = int(config.get('log_interval', '10'))
-    batch_size = int(config.get('batch_size', '32768'))
-    chunk_size = int(config.get('chunk_size', '1024'))
-    model_type = config.get('model_type', 'vectorwaveletnetnormalized')
-    if task != 'video':
-        raise ValueError(f"video.py requires task = video, got {task!r}")
-    preset = resolve_model_preset(model_type, task, channels)
-
     # Data
-    signal = load_video_signal(video_path, sidelength, channels)
+    signal = load_video_signal(config.data_path, config.sidelength, config.channels)
     height, width = signal.spatial_shape
     num_frames = signal.frame_count
 
     # Model and optimizer
-    model = build_model(model_type, **preset.kwargs).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=preset.learning_rate)
+    model = build_model(config.model_type, **config.model_kwargs).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     # TensorBoard writer
     writer = SummaryWriter()
-    writer.add_text('config', str(config))
-    writer.add_text('resolved_model', json.dumps({
-        'model_type': model_type,
-        'task': task,
-        'learning_rate': preset.learning_rate,
-        'model_kwargs': preset.kwargs,
-        'device': str(device),
-        'seed': seed,
-    }, indent=2, sort_keys=True))
+    writer.add_text(
+        'resolved_config',
+        json.dumps(config.resolved_dict(device=str(device), value_range=signal.value_range), indent=2, sort_keys=True),
+    )
 
     fit(
         model, signal.coords, signal.pixels, optimizer,
-        total_steps=total_steps,
-        log_interval=log_interval,
+        total_steps=config.total_steps,
+        log_interval=config.log_interval,
         writer=writer,
         value_range=signal.value_range,
         sampling='random',
-        batch_size=batch_size,
+        batch_size=config.batch_size,
     )
 
     # Evaluation
-    preds_all = predict_chunks(model, signal.coords, chunk_size).numpy()
+    preds_all = predict_chunks(model, signal.coords, config.chunk_size).numpy()
 
     # Reshape to video format and compute average PSNR
-    video_pred = preds_all.reshape(num_frames, height, width, channels)
-    video_truth = signal.pixels.numpy().reshape(num_frames, height, width, channels)
+    video_pred = preds_all.reshape(num_frames, height, width, config.channels)
+    video_truth = signal.pixels.numpy().reshape(num_frames, height, width, config.channels)
     psnr_vals = [
         mse_to_psnr(((video_pred[t] - video_truth[t]) ** 2).mean(), signal.value_range)
         for t in range(num_frames)
@@ -99,7 +78,7 @@ def main():
 
     # Visualization of first frame
     first = signal.to_unit_range(video_pred[0])
-    if channels == 3:
+    if config.channels == 3:
         plt.figure(figsize=(6, 6))
         plt.imshow(np.clip(first, 0, 1))
         plt.title("Reconstructed First Frame")

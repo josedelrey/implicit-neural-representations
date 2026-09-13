@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
+from math import isfinite
+from collections.abc import Mapping
 
 from models.model_factory import validate_model_kwargs
 
@@ -174,7 +176,52 @@ OVERRIDE_PRESETS = {
 }
 
 
-def resolve_model_preset(model_type: str, task: str, channels: int) -> ResolvedModelPreset:
+def _validate_override(model_type: str, key: str, value, default) -> None:
+    label = f'model.overrides.{key}'
+    if key == 'omega0' and model_type == 'vectorwaveletnetnormalized':
+        values = value if isinstance(value, list) else [value]
+        if not values or any(type(item) not in (int, float) or not isfinite(item) or item <= 0 for item in values):
+            raise ValueError(f'{label} must be a positive number or list of positive numbers')
+        return
+    if default is None:
+        if value is None:
+            return
+        if key in ('fbs', 'hbs'):
+            if type(value) in (int, float) and isfinite(value) and value >= 0:
+                return
+        elif key == 'alphaType' and isinstance(value, str) and value:
+            return
+        raise ValueError(f'{label} has an invalid type or value')
+    if type(default) is bool:
+        valid = type(value) is bool
+    elif key in ('hidden_layers', 'hidden_features', 'L', 'high_freq_num', 'low_freq_num', 'phi_num'):
+        valid = type(value) is int and value >= (1 if key in ('hidden_features', 'phi_num') else 0)
+        if key == 'hidden_layers' and model_type == 'mlp':
+            valid = valid and value >= 1
+    elif type(default) in (int, float):
+        valid = type(value) in (int, float) and isfinite(value) and value > 0
+    elif type(default) is str:
+        valid = isinstance(value, str) and bool(value)
+    else:
+        valid = type(value) is type(default)
+    if not valid:
+        raise ValueError(f'{label} has an invalid type or value')
+    if key == 'act' and value not in {
+        'relu', 'gaussian', 'quadratic', 'multi-quadratic', 'laplacian', 'super-gaussian', 'expsin'
+    }:
+        raise ValueError(f'{label} is not a supported activation')
+    if key == 'mode' and value not in {'relu', 'relu+fr', 'relu+pe', 'sin', 'sin+fr'}:
+        raise ValueError(f'{label} is not a supported FRINR mode')
+
+
+def resolve_model_preset(
+    model_type: str,
+    task: str,
+    channels: int,
+    *,
+    overrides: Mapping[str, object] | None = None,
+    learning_rate: float | None = None,
+) -> ResolvedModelPreset:
     """Resolve and validate the complete model settings before construction."""
     if model_type not in BASE_PRESETS:
         raise ValueError(f"Unknown model: {model_type!r}")
@@ -184,12 +231,27 @@ def resolve_model_preset(model_type: str, task: str, channels: int) -> ResolvedM
         raise ValueError("channels must be 1 or 3")
 
     base = BASE_PRESETS[model_type]
-    overrides = OVERRIDE_PRESETS[task].get(model_type, {})
+    task_overrides = OVERRIDE_PRESETS[task].get(model_type, {})
+    defaults = {**base.kwargs, **task_overrides.get('kwargs', {})}
+    if overrides is None:
+        overrides = {}
+    if not isinstance(overrides, Mapping):
+        raise ValueError('model.overrides must be a mapping')
+    allowed = set(defaults) | ({'b'} if model_type == 'mlp' else set())
+    for key, value in overrides.items():
+        if key not in allowed:
+            raise ValueError(f'Unknown model override: {key!r}')
+        _validate_override(model_type, key, value, defaults.get(key, 1.0))
+    if learning_rate is not None and (
+        type(learning_rate) not in (int, float) or not isfinite(learning_rate) or learning_rate <= 0
+    ):
+        raise ValueError('training.learning_rate must be a positive number')
     kwargs = {
-        **deepcopy(base.kwargs),
-        **deepcopy(overrides.get("kwargs", {})),
+        **deepcopy(defaults),
+        **deepcopy(overrides),
         "in_features": 2 if task == "image" else 3,
         "out_features": channels,
     }
     validate_model_kwargs(model_type, kwargs)
-    return ResolvedModelPreset(overrides.get("lr", base.lr), kwargs)
+    lr = learning_rate if learning_rate is not None else task_overrides.get('lr', base.lr)
+    return ResolvedModelPreset(lr, kwargs)
