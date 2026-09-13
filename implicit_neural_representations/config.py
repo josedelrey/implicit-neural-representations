@@ -7,7 +7,7 @@ import re
 
 import yaml
 
-from models.presets import resolve_model_preset
+from .presets import resolve_model_preset
 
 
 class ConfigError(ValueError):

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from modules.dataset import SignalData, load_image_signal, load_video_signal
+from implicit_neural_representations.dataset import SignalData, load_image_signal, load_video_signal
 
 
 class FakeReader:
@@ -34,7 +34,7 @@ class SignalDataTests(unittest.TestCase):
             image = load_image_signal(str(image_path), sidelength=6, channels=3)
 
         reader = FakeReader([frame, 255 - frame])
-        with patch('modules.dataset.imageio.get_reader', return_value=reader):
+        with patch('implicit_neural_representations.dataset.imageio.get_reader', return_value=reader):
             video = load_video_signal('example.mp4', sidelength=6, channels=3)
 
         self.assertEqual(image.spatial_shape, (4, 6))
@@ -62,7 +62,7 @@ class SignalDataTests(unittest.TestCase):
 
     def test_empty_video_closes_reader_and_fails_clearly(self):
         reader = FakeReader([])
-        with patch('modules.dataset.imageio.get_reader', return_value=reader):
+        with patch('implicit_neural_representations.dataset.imageio.get_reader', return_value=reader):
             with self.assertRaisesRegex(ValueError, 'contains no frames'):
                 load_video_signal('empty.mp4', sidelength=8, channels=1)
         self.assertTrue(reader.closed)

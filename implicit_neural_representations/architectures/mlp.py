@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from modules.encoding import PositionalEncoding
+from ..encoding import PositionalEncoding
 
 
 class MLP(nn.Module):

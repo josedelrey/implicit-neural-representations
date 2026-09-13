@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import torch
 
-from modules.loss import mse_to_psnr
-from modules.utils import log_training_metrics
+from implicit_neural_representations.loss import mse_to_psnr
+from implicit_neural_representations.utils import log_training_metrics
 
 
 class SignalRangeMetricTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class SignalRangeMetricTests(unittest.TestCase):
 
     def test_training_log_uses_signal_range(self):
         writer = Mock()
-        with patch('modules.utils.tqdm.write'):
+        with patch('implicit_neural_representations.utils.tqdm.write'):
             log_training_metrics(
                 1, torch.tensor(0.04), datetime.datetime.now(), writer,
                 (-1.0, 1.0),
