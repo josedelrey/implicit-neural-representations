@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -9,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from modules.dataset import VideoDataset
 from modules.loss import mse_to_psnr
 from models.model_factory import build_model
+from models.presets import resolve_model_preset
 from modules.utils import parse_config, log_training_metrics
 
 
@@ -48,6 +50,9 @@ def main():
     batch_size = int(config.get('batch_size', '32768'))
     chunk_size = int(config.get('chunk_size', '1024'))
     model_type = config.get('model_type', 'vectorwaveletnetnormalized')
+    if task != 'video':
+        raise ValueError(f"video.py requires task = video, got {task!r}")
+    preset = resolve_model_preset(model_type, task, channels)
 
     # Data
     dataset = VideoDataset(sidelength, path=video_path, channels=channels)
@@ -57,12 +62,20 @@ def main():
     num_coords = coords.shape[0]
 
     # Model and optimizer
-    model, learning_rate = build_model(model_type, task, channels, device=device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    model = build_model(model_type, **preset.kwargs).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=preset.learning_rate)
 
     # TensorBoard writer
     writer = SummaryWriter()
     writer.add_text('config', str(config))
+    writer.add_text('resolved_model', json.dumps({
+        'model_type': model_type,
+        'task': task,
+        'learning_rate': preset.learning_rate,
+        'model_kwargs': preset.kwargs,
+        'device': str(device),
+        'seed': seed,
+    }, indent=2, sort_keys=True))
 
     # Training loop
     start_time = datetime.datetime.now()

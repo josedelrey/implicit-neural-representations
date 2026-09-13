@@ -1,6 +1,7 @@
 import os
 import argparse
 import datetime
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -9,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from modules.dataset import ImageDataset
 from models.model_factory import build_model
+from models.presets import resolve_model_preset
 from modules.utils import parse_config, log_training_metrics
 
 
@@ -51,6 +53,9 @@ def main():
     log_interval = int(config.get('log_interval', '10'))
     chunk_size = int(config.get('chunk_size', '4096'))
     model_type = config.get('model_type', 'waveletnetnormalized')
+    if task != 'image':
+        raise ValueError(f"image.py requires task = image, got {task!r}")
+    preset = resolve_model_preset(model_type, task, channels)
 
     # Data
     dataset = ImageDataset(sidelength, path=image_path, channels=channels)
@@ -58,12 +63,20 @@ def main():
     height, width = dataset.height, dataset.width
 
     # Model and optimizer
-    model, learning_rate = build_model(model_type, task, channels, device=device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    model = build_model(model_type, **preset.kwargs).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=preset.learning_rate)
 
     # TensorBoard writer
     writer = SummaryWriter()
     writer.add_text('config', str(config))
+    writer.add_text('resolved_model', json.dumps({
+        'model_type': model_type,
+        'task': task,
+        'learning_rate': preset.learning_rate,
+        'model_kwargs': preset.kwargs,
+        'device': str(device),
+        'seed': seed,
+    }, indent=2, sort_keys=True))
 
     # Training loop
     coords, pixels = next(iter(loader))

@@ -1,223 +1,58 @@
-from collections import namedtuple
+"""Construct INR models from explicit architecture parameters."""
 
-from models.mlp import MLP
-from models.siren import Siren
-from models.mfn import FourierNet, GaborNet
-from models.mfn import WaveletNet, WaveletNetNormalized, VectorWaveletNetNormalized
-from models.wire import WIRE
+from inspect import signature
+
 from models.finer import Finer
 from models.frinr import FRINR
+from models.mfn import (
+    FourierNet,
+    GaborNet,
+    VectorWaveletNetNormalized,
+    WaveletNet,
+    WaveletNetNormalized,
+)
+from models.mlp import MLP
+from models.siren import Siren
+from models.wire import WIRE
 
-# ----------------------------------------------------------------------------
-# Base defaults for each model architecture
-# ----------------------------------------------------------------------------
-ModelSpec = namedtuple("ModelSpec", ["cls", "lr", "kwargs"])
 
-BASE_SPECS = {
-    "mlp": ModelSpec(
-        cls=MLP,
-        lr=1e-3,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "act": "gaussian",
-            "act_trainable": True,
-            "use_pe": False,
-            "L": 10,
-            "a": 0.1,
-        },
-    ),
-    "siren": ModelSpec(
-        cls=Siren,
-        lr=1e-4,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "outermost_linear": True,
-            "first_omega_0": 30,
-            "hidden_omega_0": 30,
-        },
-    ),
-    "fouriernet": ModelSpec(
-        cls=FourierNet,
-        lr=1e-2,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 256.0,
-            "weight_scale": 1.0,
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "gabornet": ModelSpec(
-        cls=GaborNet,
-        lr=1e-2,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 256.0,
-            "weight_scale": 1.0,
-            "alpha": 6.0,
-            "beta": 1.0,
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "waveletnet": ModelSpec(
-        cls=WaveletNet,
-        lr=1e-3,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 128.0,
-            "weight_scale": 1.0,
-            "alpha": 6.0,
-            "beta": 1.0,
-            "omega0": 5.0,
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "waveletnetnormalized": ModelSpec(
-        cls=WaveletNetNormalized,
-        lr=1e-3,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 128.0,
-            "weight_scale": 1.0,
-            "alpha": 6.0,
-            "beta": 1.0,
-            "omega0": 5.0,
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "vectorwaveletnetnormalized": ModelSpec(
-        cls=VectorWaveletNetNormalized,
-        lr=1e-3,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "input_scale": 128.0,
-            "weight_scale": 1.0,
-            "alpha": 6.0,
-            "beta": 1.0,
-            "omega0": [0.7, 5.0, 5.0],
-            "bias": True,
-            "output_act": False,
-        },
-    ),
-    "wire": ModelSpec(
-        cls=WIRE,
-        lr=2e-2,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "outermost_linear": True,
-            "first_omega_0": 10.0,
-            "hidden_omega_0": 10.0,
-            "scale": 6.0,
-            "pos_encode": False,
-            "L": 6,
-        },
-    ),
-    "finer": ModelSpec(
-        cls=Finer,
-        lr=1e-4,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "first_omega": 30,
-            "hidden_omega": 30,
-            "init_method": 'sine',
-            "init_gain": 1,
-            "fbs": None,
-            "hbs": None,
-            "alphaType": None,
-            "alphaReqGrad": False,
-        },
-    ),
-    "frinr": ModelSpec(
-        cls=FRINR,
-        lr=1e-4,
-        kwargs={
-            "in_features": 2,
-            "out_features": None,
-            "hidden_layers": 4,
-            "hidden_features": 256,
-            "mode": 'sin',
-            "outermost_linear": True,
-            "high_freq_num": 128,
-            "low_freq_num": 128,
-            "phi_num": 32,
-            "alpha": 0.01,
-            "first_omega_0": 30.0,
-            "hidden_omega_0": 30.0,
-            "pe": False,
-        },
-    ),
+MODEL_CLASSES = {
+    "mlp": MLP,
+    "siren": Siren,
+    "fouriernet": FourierNet,
+    "gabornet": GaborNet,
+    "waveletnet": WaveletNet,
+    "waveletnetnormalized": WaveletNetNormalized,
+    "vectorwaveletnetnormalized": VectorWaveletNetNormalized,
+    "wire": WIRE,
+    "finer": Finer,
+    "frinr": FRINR,
 }
 
-# ----------------------------------------------------------------------------
-# Optional overrides per task (e.g. image vs video)
-# ----------------------------------------------------------------------------
-OVERRIDE_SPECS = {
-    "image": {},
-    "video": {
-        "mlp": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "siren": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "fouriernet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "gabornet": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "waveletnet": dict(kwargs={"in_features": 3, "hidden_features": 512, "omega0": 0.8}),
-        "waveletnetnormalized": dict(kwargs={"in_features": 3, "hidden_features": 512, "omega0": 0.8}),
-        "vectorwaveletnetnormalized": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "wire": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "finer": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-        "frinr": dict(kwargs={"in_features": 3, "hidden_features": 512}),
-    },
-}
 
-# ----------------------------------------------------------------------------
-# Factory to build a model + learning rate
-# ----------------------------------------------------------------------------
-def build_model(model_type: str,
-                task: str,
-                channels: int,
-                device: str = "cuda"):
-    # Validate model type and task
-    if model_type not in BASE_SPECS:
-        raise ValueError(f"Unknown model: {model_type!r}")
-    if task not in OVERRIDE_SPECS:
-        raise ValueError(f"Unknown task: {task!r}")
-    
-    base = BASE_SPECS[model_type]
-    overrides = OVERRIDE_SPECS.get(task, {}).get(model_type, {})
+def validate_model_kwargs(model_type: str, kwargs: dict) -> None:
+    """Check configuration errors without constructing a model."""
+    try:
+        model_class = MODEL_CLASSES[model_type]
+    except KeyError as exc:
+        raise ValueError(f"Unknown model: {model_type!r}") from exc
 
-    lr = overrides.get("lr", base.lr)
-    kwargs = {**base.kwargs, **overrides.get("kwargs", {})}
+    signature(model_class).bind(**kwargs)
+    in_features = kwargs["in_features"]
+    out_features = kwargs["out_features"]
+    if in_features <= 0 or out_features <= 0:
+        raise ValueError("in_features and out_features must be positive")
 
-    if kwargs["out_features"] is None:
-        kwargs["out_features"] = channels
+    if model_type == "vectorwaveletnetnormalized":
+        omega0 = kwargs.get("omega0", 5.0)
+        if not isinstance(omega0, (float, int)) and len(omega0) != in_features:
+            raise ValueError(
+                f"omega0 length {len(omega0)} != in_features {in_features}"
+            )
 
-    model = base.cls(**kwargs).to(device)
-    return model, lr
+
+def build_model(model_type: str, *, in_features: int, out_features: int, **kwargs):
+    """Return a model without choosing its task, optimizer, or device."""
+    model_kwargs = {"in_features": in_features, "out_features": out_features, **kwargs}
+    validate_model_kwargs(model_type, model_kwargs)
+    return MODEL_CLASSES[model_type](**model_kwargs)
