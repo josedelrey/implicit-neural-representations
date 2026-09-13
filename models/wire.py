@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 
-from modules.encoding import positional_encoding
+from modules.encoding import PositionalEncoding
 
 
 class RealGaborLayer(nn.Module):
@@ -125,14 +125,13 @@ class WIRE(nn.Module):
             scale (float): Scaling parameter for the Gaussian envelope.
             pos_encode (bool): If True, apply positional encoding to inputs.
             L (int): Number of frequencies for positional encoding.
-            sidelength, fn_samples, use_nyquist: Legacy or optional parameters.
         """
         super().__init__()
         
         # Save positional encoding flag and frequency count if active.
         self.pos_encode = pos_encode
-        if self.pos_encode:
-            self.L = L
+        self.encoding = PositionalEncoding(in_features, L) if pos_encode else nn.Identity()
+        encoded_features = self.encoding.out_dim if pos_encode else in_features
 
         # Use the ComplexGaborLayer as the default nonlinearity.
         self.nonlin = ComplexGaborLayer
@@ -143,7 +142,7 @@ class WIRE(nn.Module):
         layers = OrderedDict()
         # First layer with is_first=True and non-trainable frequency parameters.
         layers["layer0"] = self.nonlin(
-            in_features, 
+            encoded_features,
             hidden_features, 
             omega0=first_omega_0, 
             sigma0=scale, 
@@ -175,8 +174,7 @@ class WIRE(nn.Module):
     
     def forward(self, coords):
         # If positional encoding is enabled, transform the input coordinates.
-        if self.pos_encode:
-            coords = positional_encoding(coords, self.L).to(coords.device)
+        coords = self.encoding(coords)
         output = self.net(coords)
         # For consistency with the Gabor nonlinearity, return only the real part.
         if self.wavelet == 'gabor':

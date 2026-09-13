@@ -2,48 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+from modules.encoding import FrequencyEncoding
 
-class PosEncodingNeRF(nn.Module):
-    '''Module to add positional encoding as in NeRF [Mildenhall et al. 2020].'''
-    def __init__(self, in_features, sidelength=None, fn_samples=None, use_nyquist=True):
-        super().__init__()
-
-        self.in_features = in_features
-
-        if self.in_features == 3:
-            self.num_frequencies = 10
-        elif self.in_features == 2:
-            assert sidelength is not None
-            if isinstance(sidelength, int):
-                sidelength = (sidelength, sidelength)
-            self.num_frequencies = 4
-            if use_nyquist:
-                self.num_frequencies = self.get_num_frequencies_nyquist(min(sidelength[0], sidelength[1]))
-        elif self.in_features == 1:
-            assert fn_samples is not None
-            self.num_frequencies = 4
-            if use_nyquist:
-                self.num_frequencies = self.get_num_frequencies_nyquist(fn_samples)
-
-        self.out_dim = in_features + 2 * in_features * self.num_frequencies
-
-    def get_num_frequencies_nyquist(self, samples):
-        nyquist_rate = 1 / (2 * (2 * 1 / samples))
-        return int(np.floor(np.log(nyquist_rate, 2)))
-
-    def forward(self, coords):
-        coords = coords.view(coords.shape[0], -1, self.in_features)
-
-        coords_pos_enc = coords
-        for i in range(self.num_frequencies):
-            for j in range(self.in_features):
-                c = coords[..., j]
-
-                sin = torch.unsqueeze(torch.sin((2 ** i) * np.pi * c), -1)
-                cos = torch.unsqueeze(torch.cos((2 ** i) * np.pi * c), -1)
-
-                coords_pos_enc = torch.cat((coords_pos_enc, sin, cos), axis=-1)
-        return coords_pos_enc.reshape(coords.shape[0], -1, self.out_dim)
 
 class Fourier_reparam_linear(nn.Module):
     def __init__(self,in_features,out_features,high_freq_num,low_freq_num,phi_num,alpha):
@@ -194,10 +154,11 @@ class FRINR(nn.Module):
     def __init__(self,mode,in_features,hidden_features,hidden_layers,out_features,outermost_linear,high_freq_num,low_freq_num,
     phi_num,alpha,first_omega_0,hidden_omega_0,pe):
         super().__init__()
-        self.net=[]
         self.pe=pe
         if pe==True:
-            self.positional_encoding = PosEncodingNeRF(in_features=in_features,sidelength=256,fn_samples=None,use_nyquist=True)
+            self.positional_encoding = FrequencyEncoding(
+                in_features=in_features, mapping_input=256, use_nyquist=True
+            )
             in_features=self.positional_encoding.out_dim
         self.net=[]
         if mode=='relu':

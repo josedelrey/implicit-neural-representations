@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from modules.encoding import positional_encoding
+from modules.encoding import PositionalEncoding
 
 
 class MLP(nn.Module):
@@ -11,7 +11,7 @@ class MLP(nn.Module):
     This class implements an MLP that processes input features and outputs predictions.
     It can optionally apply positional encoding to the input, similar to the ReLUPE class.
     It consists of several linear layers interleaved with activation functions. The final
-    layer outputs n_out values passed through a Sigmoid activation to constrain outputs to [0, 1].
+    layer outputs the requested number of unconstrained values.
 
     Args:
         n_in (int): Number of input features.
@@ -40,8 +40,8 @@ class MLP(nn.Module):
         super().__init__()
         self.use_pe = use_pe
         self.L = L
-        # If positional encoding is active, modify the input dimension accordingly.
-        effective_n_in = in_features * (1 + 2 * L) if use_pe else in_features
+        self.encoding = PositionalEncoding(in_features, L) if use_pe else nn.Identity()
+        effective_n_in = self.encoding.out_dim if use_pe else in_features
 
         layers = []
         for i in range(hidden_layers):
@@ -87,9 +87,7 @@ class MLP(nn.Module):
         Returns:
             torch.Tensor: Output tensor of shape (B, n_out).
         """
-        if self.use_pe:
-            # Apply positional encoding to the input
-            x = positional_encoding(x, self.L).to(x.device)
+        x = self.encoding(x)
         return self.net(x)
 
 

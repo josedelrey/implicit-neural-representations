@@ -84,9 +84,7 @@ class Siren(nn.Module):
         self.net = nn.Sequential(*self.net)
     
     def forward(self, coords):
-        coords = coords.clone().detach().requires_grad_(True)
-        output = self.net(coords)
-        return output
+        return self.net(coords)
 
     def forward_with_activations(self, coords, retain_grad=False):
         """
@@ -96,7 +94,7 @@ class Siren(nn.Module):
         activations = OrderedDict()
 
         activation_count = 0
-        x = coords.clone().detach().requires_grad_(True)
+        x = coords
         activations['input'] = x
         for i, layer in enumerate(self.net):
             if isinstance(layer, SineLayer):
