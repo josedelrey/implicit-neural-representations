@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from modules.dataset import VideoDataset
+from modules.dataset import load_video_signal
 from modules.loss import mse_to_psnr
 from modules.training import fit, predict_chunks
 from models.model_factory import build_model
@@ -54,10 +54,9 @@ def main():
     preset = resolve_model_preset(model_type, task, channels)
 
     # Data
-    dataset = VideoDataset(sidelength, path=video_path, channels=channels)
-    height, width, num_frames = dataset.height, dataset.width, dataset.num_frames
-    coords = dataset.coords.to(device)
-    pixels = dataset.pixels.to(device)
+    signal = load_video_signal(video_path, sidelength, channels)
+    height, width = signal.spatial_shape
+    num_frames = signal.frame_count
 
     # Model and optimizer
     model = build_model(model_type, **preset.kwargs).to(device)
@@ -76,7 +75,7 @@ def main():
     }, indent=2, sort_keys=True))
 
     fit(
-        model, coords, pixels, optimizer,
+        model, signal.coords, signal.pixels, optimizer,
         total_steps=total_steps,
         log_interval=log_interval,
         writer=writer,
@@ -85,11 +84,11 @@ def main():
     )
 
     # Evaluation
-    preds_all = predict_chunks(model, coords, chunk_size).numpy()
+    preds_all = predict_chunks(model, signal.coords, chunk_size).numpy()
 
     # Reshape to video format and compute average PSNR
     video_pred = preds_all.reshape(num_frames, height, width, channels)
-    video_truth = dataset.pixels.cpu().numpy().reshape(num_frames, height, width, channels)
+    video_truth = signal.pixels.numpy().reshape(num_frames, height, width, channels)
     psnr_vals = [
         mse_to_psnr(((video_pred[t] - video_truth[t]) ** 2).mean())
         for t in range(num_frames)
@@ -98,7 +97,8 @@ def main():
     print(f"Average PSNR over all frames: {avg_psnr:.6f}")
 
     # Visualization of first frame
-    first = (video_pred[0] + 1) / 2
+    value_min, value_max = signal.value_range
+    first = (video_pred[0] - value_min) / (value_max - value_min)
     if channels == 3:
         plt.figure(figsize=(6, 6))
         plt.imshow(np.clip(first, 0, 1))

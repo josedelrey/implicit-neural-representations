@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from modules.dataset import ImageDataset
+from modules.dataset import load_image_signal
 from modules.training import fit, predict_chunks
 from models.model_factory import build_model
 from models.presets import resolve_model_preset
@@ -57,8 +57,8 @@ def main():
     preset = resolve_model_preset(model_type, task, channels)
 
     # Data
-    dataset = ImageDataset(sidelength, path=image_path, channels=channels)
-    height, width = dataset.height, dataset.width
+    signal = load_image_signal(image_path, sidelength, channels)
+    height, width = signal.spatial_shape
 
     # Model and optimizer
     model = build_model(model_type, **preset.kwargs).to(device)
@@ -76,9 +76,8 @@ def main():
         'seed': seed,
     }, indent=2, sort_keys=True))
 
-    coords, pixels = dataset.coords.to(device), dataset.pixels.to(device)
     fit(
-        model, coords, pixels, optimizer,
+        model, signal.coords, signal.pixels, optimizer,
         total_steps=total_steps,
         log_interval=log_interval,
         writer=writer,
@@ -86,7 +85,7 @@ def main():
     )
 
     # Evaluation
-    preds_all = predict_chunks(model, coords, chunk_size).numpy()
+    preds_all = predict_chunks(model, signal.coords, chunk_size).numpy()
 
     # Reconstruct image buffer
     image = (
@@ -94,7 +93,8 @@ def main():
         if channels == 3
         else preds_all.reshape(height, width)
     )
-    image = (image + 1) / 2  # normalize to [0,1]
+    value_min, value_max = signal.value_range
+    image = (image - value_min) / (value_max - value_min)
 
     # Ensure output directory exists
     export_dir = os.path.dirname(export_path)
