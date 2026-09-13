@@ -2,18 +2,18 @@
 
 from inspect import signature
 
-from models.finer import Finer
-from models.frinr import FRINR
-from models.mfn import (
+from .architectures.finer import Finer
+from .architectures.frinr import FRINR
+from .architectures.mfn import (
     FourierNet,
     GaborNet,
     VectorWaveletNetNormalized,
     WaveletNet,
     WaveletNetNormalized,
 )
-from models.mlp import MLP
-from models.siren import Siren
-from models.wire import WIRE
+from .architectures.mlp import MLP
+from .architectures.siren import Siren
+from .architectures.wire import WIRE
 
 
 MODEL_CLASSES = {

@@ -2,8 +2,8 @@ import unittest
 
 import torch
 
-from models.model_factory import MODEL_CLASSES, build_model, validate_model_kwargs
-from models.presets import BASE_PRESETS, resolve_model_preset
+from implicit_neural_representations.model_factory import MODEL_CLASSES, build_model, validate_model_kwargs
+from implicit_neural_representations.presets import BASE_PRESETS, resolve_model_preset
 
 
 class ModelPresetTests(unittest.TestCase):

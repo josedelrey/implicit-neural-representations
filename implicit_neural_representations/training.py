@@ -5,7 +5,7 @@ from typing import Literal
 
 import torch
 
-from modules.utils import log_training_metrics
+from .utils import log_training_metrics
 
 
 Sampling = Literal['full', 'random']

@@ -2,11 +2,11 @@ import unittest
 
 import torch
 
-from models.frinr import FRINR
-from models.mlp import MLP
-from models.siren import Siren
-from models.wire import WIRE
-from modules.encoding import FrequencyEncoding, GaussianEncoding, PositionalEncoding
+from implicit_neural_representations.architectures.frinr import FRINR
+from implicit_neural_representations.architectures.mlp import MLP
+from implicit_neural_representations.architectures.siren import Siren
+from implicit_neural_representations.architectures.wire import WIRE
+from implicit_neural_representations.encoding import FrequencyEncoding, GaussianEncoding, PositionalEncoding
 
 
 class EncodingTests(unittest.TestCase):

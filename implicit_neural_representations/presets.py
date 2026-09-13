@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import isfinite
 from collections.abc import Mapping
 
-from models.model_factory import validate_model_kwargs
+from .model_factory import validate_model_kwargs
 
 
 @dataclass(frozen=True)
