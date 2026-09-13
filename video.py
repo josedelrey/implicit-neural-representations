@@ -1,17 +1,16 @@
 import argparse
-import datetime
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from modules.dataset import VideoDataset
 from modules.loss import mse_to_psnr
+from modules.training import fit, predict_chunks
 from models.model_factory import build_model
 from models.presets import resolve_model_preset
-from modules.utils import parse_config, log_training_metrics
+from modules.utils import parse_config
 
 
 def main():
@@ -59,7 +58,6 @@ def main():
     height, width, num_frames = dataset.height, dataset.width, dataset.num_frames
     coords = dataset.coords.to(device)
     pixels = dataset.pixels.to(device)
-    num_coords = coords.shape[0]
 
     # Model and optimizer
     model = build_model(model_type, **preset.kwargs).to(device)
@@ -77,28 +75,17 @@ def main():
         'seed': seed,
     }, indent=2, sort_keys=True))
 
-    # Training loop
-    start_time = datetime.datetime.now()
-    for step in range(total_steps + 1):
-        optimizer.zero_grad()
-        indices = torch.randint(0, num_coords, (batch_size,), device=coords.device)
-        batch_coords = coords[indices]
-        batch_pixels = pixels[indices]
-        preds = model(batch_coords)
-        loss = ((preds - batch_pixels) ** 2).mean()
-        loss.backward()
-        optimizer.step()
-
-        if step % log_interval == 0:
-            log_training_metrics(step, loss, start_time, writer)
+    fit(
+        model, coords, pixels, optimizer,
+        total_steps=total_steps,
+        log_interval=log_interval,
+        writer=writer,
+        sampling='random',
+        batch_size=batch_size,
+    )
 
     # Evaluation
-    model.eval()
-    with torch.no_grad():
-        preds_list = []
-        for i in range(0, num_coords, chunk_size):
-            preds_list.append(model(coords[i:i+chunk_size]))
-        preds_all = torch.cat(preds_list, dim=0).cpu().numpy()
+    preds_all = predict_chunks(model, coords, chunk_size).numpy()
 
     # Reshape to video format and compute average PSNR
     video_pred = preds_all.reshape(num_frames, height, width, channels)
