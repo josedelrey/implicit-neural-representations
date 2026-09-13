@@ -1,17 +1,16 @@
 import os
 import argparse
-import datetime
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from modules.dataset import ImageDataset
+from modules.training import fit, predict_chunks
 from models.model_factory import build_model
 from models.presets import resolve_model_preset
-from modules.utils import parse_config, log_training_metrics
+from modules.utils import parse_config
 
 
 def main():
@@ -59,7 +58,6 @@ def main():
 
     # Data
     dataset = ImageDataset(sidelength, path=image_path, channels=channels)
-    loader = DataLoader(dataset, batch_size=1, pin_memory=(device.type == 'cuda'), num_workers=0)
     height, width = dataset.height, dataset.width
 
     # Model and optimizer
@@ -78,31 +76,17 @@ def main():
         'seed': seed,
     }, indent=2, sort_keys=True))
 
-    # Training loop
-    coords, pixels = next(iter(loader))
-    coords, pixels = coords.to(device), pixels.to(device)
-
-    start_time = datetime.datetime.now()
-    for step in range(total_steps + 1):
-        coords_squeezed = coords.squeeze(0)
-        preds = model(coords_squeezed)
-        loss = ((preds - pixels) ** 2).mean()
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if step % log_interval == 0:
-            log_training_metrics(step, loss, start_time, writer)
+    coords, pixels = dataset.coords.to(device), dataset.pixels.to(device)
+    fit(
+        model, coords, pixels, optimizer,
+        total_steps=total_steps,
+        log_interval=log_interval,
+        writer=writer,
+        sampling='full',
+    )
 
     # Evaluation
-    model.eval()
-    with torch.no_grad():
-        full_uv = dataset.coords.to(device)
-        predictions = []
-        for i in range(0, full_uv.shape[0], chunk_size):
-            predictions.append(model(full_uv[i:i+chunk_size]))
-        preds_all = torch.cat(predictions, dim=0).cpu().numpy()
+    preds_all = predict_chunks(model, coords, chunk_size).numpy()
 
     # Reconstruct image buffer
     image = (
