@@ -1,100 +1,99 @@
+"""Coordinate encodings with explicit output dimensions and stable tensor shapes."""
+
 import math
-import numpy as np
+from collections.abc import Sequence
+
 import torch
 from torch import nn
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def _check_coordinates(coords: torch.Tensor, in_features: int) -> None:
+    if coords.ndim < 1 or coords.shape[-1] != in_features:
+        raise ValueError(f'Expected coordinates with last dimension {in_features}')
+
+
+class PositionalEncoding(nn.Module):
+    """Raw coordinates plus sin/cos of 2**i * coords, without a pi factor."""
+
+    def __init__(self, in_features: int, num_frequencies: int):
+        super().__init__()
+        if in_features <= 0 or num_frequencies < 0:
+            raise ValueError('in_features must be positive and num_frequencies non-negative')
+        self.in_features = in_features
+        self.num_frequencies = num_frequencies
+        self.out_dim = in_features * (1 + 2 * num_frequencies)
+
+    def forward(self, coords: torch.Tensor) -> torch.Tensor:
+        _check_coordinates(coords, self.in_features)
+        parts = [coords]
+        for i in range(self.num_frequencies):
+            scaled = (2 ** i) * coords
+            parts.extend((torch.sin(scaled), torch.cos(scaled)))
+        return torch.cat(parts, dim=-1)
+
 
 class FrequencyEncoding(nn.Module):
-    '''Module to add positional encoding as in NeRF [Mildenhall et al. 2020].'''
-    def __init__(self, pos_encode_configs, in_features=2):
+    """NeRF-style encoding with pi-scaled, per-coordinate sin/cos features."""
+
+    def __init__(
+        self,
+        in_features: int,
+        mapping_input: int | Sequence[int] | None = None,
+        use_nyquist: bool = False,
+    ):
         super().__init__()
-
-        mapping_input = pos_encode_configs['mapping_input']
-        use_nyquist = pos_encode_configs['use_nyquist']
+        if in_features <= 0:
+            raise ValueError('in_features must be positive')
         self.in_features = in_features
-
-        if self.in_features == 3:
+        if in_features == 3:
+            # Preserve the existing three-dimensional NeRF convention.
             self.num_frequencies = 10
-        elif self.in_features == 2:
-            assert mapping_input is not None
+        elif use_nyquist and in_features in (1, 2):
+            if mapping_input is None:
+                raise ValueError('mapping_input is required when using Nyquist frequencies')
             if isinstance(mapping_input, int):
-                mapping_input = (mapping_input, mapping_input)
-            self.num_frequencies = 4
-            if use_nyquist:
-                self.num_frequencies = self.get_num_frequencies_nyquist(min(mapping_input[0], mapping_input[1]))
-        elif self.in_features == 1:
-            #assert fn_samples is not None
-            fn_samples = mapping_input
-            self.num_frequencies = 4
-            if use_nyquist:
-                self.num_frequencies = self.get_num_frequencies_nyquist(fn_samples)
+                samples = mapping_input
+            elif (isinstance(mapping_input, Sequence)
+                  and not isinstance(mapping_input, (str, bytes))
+                  and len(mapping_input) > 0):
+                samples = min(mapping_input)
+            else:
+                raise ValueError('mapping_input must be a positive sample count or sequence')
+            if samples <= 0:
+                raise ValueError('mapping_input must contain positive sample counts')
+            self.num_frequencies = max(0, math.floor(math.log2(samples / 4)))
         else:
             self.num_frequencies = 4
+        self.out_dim = in_features * (1 + 2 * self.num_frequencies)
 
-        self.out_dim = in_features + 2 * in_features * self.num_frequencies
-
-    def get_num_frequencies_nyquist(self, samples):
-        nyquist_rate = 1 / (2 * (2 * 1 / samples))
-        return int(math.floor(math.log(nyquist_rate, 2)))
-
-    def forward(self, coords):
-        coords = coords.view(coords.shape[0], -1, self.in_features)
-
-        coords_pos_enc = coords
+    def forward(self, coords: torch.Tensor) -> torch.Tensor:
+        _check_coordinates(coords, self.in_features)
+        parts = [coords]
         for i in range(self.num_frequencies):
+            scaled = (2 ** i) * math.pi * coords
             for j in range(self.in_features):
-                c = coords[..., j]
-
-                sin = torch.unsqueeze(torch.sin((2 ** i) * np.pi * c), -1)
-                cos = torch.unsqueeze(torch.cos((2 ** i) * np.pi * c), -1)
-
-                coords_pos_enc = torch.cat((coords_pos_enc, sin, cos), axis=-1)
-
-        return coords_pos_enc.reshape(coords.shape[0], -1, self.out_dim)
+                component = scaled[..., j:j + 1]
+                parts.extend((torch.sin(component), torch.cos(component)))
+        return torch.cat(parts, dim=-1)
 
 
 class GaussianEncoding(nn.Module):
-    def __init__(self, pos_encode_configs, in_features=2):
+    """Gaussian random Fourier features, excluding the original coordinates."""
+
+    def __init__(self, in_features: int, mapping_input: int, scale_B: float):
         super().__init__()
-        
-        self.scale = pos_encode_configs['scale_B']
-        mapping_input = pos_encode_configs['mapping_input']
-        
-        self.B_gauss = torch.randn((mapping_input, in_features), device=device) * self.scale
-        self.out_dim = mapping_input * in_features
+        if in_features <= 0 or mapping_input <= 0 or scale_B < 0:
+            raise ValueError('in_features and mapping_input must be positive; scale_B non-negative')
+        self.in_features = in_features
+        self.out_dim = 2 * mapping_input
+        self.register_buffer('B_gauss', torch.randn(mapping_input, in_features) * scale_B)
 
-    def forward(self, coords):
-        x_proj = (2. * np.pi * coords) @ self.B_gauss.t()
-        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
-
-
-class Encoding(nn.Module):
-    def __init__(self, encoding=None):
-        self.encoding_dict = {'frequency': FrequencyEncoding,
-                              'gaussian': GaussianEncoding
-                             }
-        if encoding != None:
-            self.encoding = self.encoding_dict[encoding]
-        
-    def run(self, *args, **kwargs):
-        return self.encoding(*args, **kwargs)
+    def forward(self, coords: torch.Tensor) -> torch.Tensor:
+        _check_coordinates(coords, self.in_features)
+        projection = (2 * math.pi * coords) @ self.B_gauss.T
+        return torch.cat((torch.sin(projection), torch.cos(projection)), dim=-1)
 
 
-def positional_encoding(x: torch.Tensor, L: int) -> torch.Tensor:
-    """
-    Simplified function that applies positional encoding to the input tensor.
-
-    Args:
-        x (torch.Tensor): Input tensor.
-        L (int): Number of encoding functions (frequencies).
-
-    Returns:
-        torch.Tensor: Concatenated tensor with positional encodings.
-    """
-    out = [x]
-    for j in range(L):
-        out.append(torch.sin(2 ** j * x))
-        out.append(torch.cos(2 ** j * x))
-        
-    return torch.cat(out, dim=1)
+def positional_encoding(coords: torch.Tensor, num_frequencies: int) -> torch.Tensor:
+    """Functional form of the unscaled positional encoding."""
+    return PositionalEncoding(coords.shape[-1], num_frequencies)(coords)
