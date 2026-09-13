@@ -12,10 +12,12 @@ class RecordingModel(torch.nn.Module):
         self.scale = torch.nn.Parameter(torch.tensor(1.0))
         self.batch_sizes = []
         self.grad_enabled = []
+        self.input_devices = []
 
     def forward(self, coords):
         self.batch_sizes.append(coords.shape[0])
         self.grad_enabled.append(torch.is_grad_enabled())
+        self.input_devices.append(coords.device.type)
         return coords[:, :1] * self.scale
 
 
@@ -69,6 +71,24 @@ class TrainingTests(unittest.TestCase):
                 total_steps=1, log_interval=1, writer=None, sampling='random',
             )
         self.assertEqual(self.model.batch_sizes, [])
+
+    @unittest.skipUnless(torch.cuda.is_available(), 'CUDA is unavailable')
+    def test_random_sampling_and_prediction_transfer_only_batches(self):
+        self.model.to('cuda')
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
+        with patch('modules.training.log_training_metrics'):
+            fit(
+                self.model, self.coords, self.pixels, optimizer,
+                total_steps=2, log_interval=1, writer=None,
+                sampling='random', batch_size=2,
+            )
+        predictions = predict_chunks(self.model, self.coords, chunk_size=2)
+
+        self.assertEqual(self.coords.device.type, 'cpu')
+        self.assertEqual(self.pixels.device.type, 'cpu')
+        self.assertEqual(self.model.batch_sizes, [2, 2, 2, 2, 1])
+        self.assertEqual(self.model.input_devices, ['cuda'] * 5)
+        self.assertEqual(predictions.device.type, 'cpu')
 
 
 if __name__ == '__main__':
