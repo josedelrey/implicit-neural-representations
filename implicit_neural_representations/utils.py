@@ -1,7 +1,7 @@
 import datetime
 from tqdm import tqdm
 
-from modules.loss import mse_to_psnr
+from .loss import mse_to_psnr
 
 
 def format_elapsed_time(start_time: datetime.datetime) -> str:

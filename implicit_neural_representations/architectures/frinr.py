@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from modules.encoding import FrequencyEncoding
+from ..encoding import FrequencyEncoding
 
 
 class Fourier_reparam_linear(nn.Module):

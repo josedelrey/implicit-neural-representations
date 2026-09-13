@@ -16,5 +16,13 @@ dependencies = [
     "PyYAML>=6.0,<7",
 ]
 
-[tool.uv]
-package = false
+[project.scripts]
+inr-image = "implicit_neural_representations.image:main"
+inr-video = "implicit_neural_representations.video:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["implicit_neural_representations*"]

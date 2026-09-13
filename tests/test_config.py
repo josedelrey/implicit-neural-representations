@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from modules.config import ConfigError, load_experiment_config
+from implicit_neural_representations.config import ConfigError, load_experiment_config
 
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / 'config'

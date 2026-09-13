@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import torch
 
-from modules.training import fit, predict_chunks
+from implicit_neural_representations.training import fit, predict_chunks
 
 
 class RecordingModel(torch.nn.Module):
@@ -29,7 +29,7 @@ class TrainingTests(unittest.TestCase):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
 
     def test_full_sampling_runs_exact_number_of_updates(self):
-        with patch('modules.training.log_training_metrics') as log, patch.object(
+        with patch('implicit_neural_representations.training.log_training_metrics') as log, patch.object(
             self.optimizer, 'step', wraps=self.optimizer.step
         ) as step:
             fit(
@@ -44,7 +44,7 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual([call.args[4] for call in log.call_args_list], [(-1.0, 1.0)] * 2)
 
     def test_random_sampling_uses_requested_batch_size(self):
-        with patch('modules.training.log_training_metrics') as log, patch.object(
+        with patch('implicit_neural_representations.training.log_training_metrics') as log, patch.object(
             self.optimizer, 'step', wraps=self.optimizer.step
         ) as step:
             fit(
@@ -80,7 +80,7 @@ class TrainingTests(unittest.TestCase):
     def test_random_sampling_and_prediction_transfer_only_batches(self):
         self.model.to('cuda')
         optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
-        with patch('modules.training.log_training_metrics'):
+        with patch('implicit_neural_representations.training.log_training_metrics'):
             fit(
                 self.model, self.coords, self.pixels, optimizer,
                 total_steps=2, log_interval=1, writer=None,
