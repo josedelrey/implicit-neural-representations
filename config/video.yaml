@@ -1,0 +1,18 @@
+data:
+  path: videos/akiyo_cif.y4m
+  sidelength: 256
+  is_rgb: true
+
+model:
+  name: vectorwaveletnetnormalized
+  overrides: {}
+
+training:
+  total_steps: 200
+  log_interval: 10
+  batch_size: 32768
+  seed: 42
+  # learning_rate: 0.001
+
+output:
+  chunk_size: 4096
