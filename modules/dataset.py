@@ -1,7 +1,7 @@
 """Load image and video signals as flattened coordinate/value pairs."""
 
 from dataclasses import dataclass
-from math import prod
+from math import isfinite, prod
 
 import imageio
 import torch
@@ -26,7 +26,9 @@ class SignalData:
     def __post_init__(self):
         if len(self.spatial_shape) != 2 or min(self.spatial_shape) <= 0:
             raise ValueError('spatial_shape must contain positive height and width')
-        if self.frame_count <= 0 or self.value_range[0] >= self.value_range[1]:
+        if (self.frame_count <= 0 or len(self.value_range) != 2
+                or not all(isfinite(bound) for bound in self.value_range)
+                or self.value_range[0] >= self.value_range[1]):
             raise ValueError('frame_count and value_range must be valid')
         if self.coordinate_order not in (('y', 'x'), ('t', 'y', 'x')):
             raise ValueError('coordinate_order must be (y, x) or (t, y, x)')
@@ -48,6 +50,11 @@ class SignalData:
     @property
     def channels(self) -> int:
         return self.pixels.shape[1]
+
+    def to_unit_range(self, values):
+        """Linearly rescale values using the declared signal range."""
+        lower, upper = self.value_range
+        return (values - lower) / (upper - lower)
 
 
 def _resized_shape(width: int, height: int, sidelength: int) -> tuple[int, int]:

@@ -81,6 +81,7 @@ def main():
         total_steps=total_steps,
         log_interval=log_interval,
         writer=writer,
+        value_range=signal.value_range,
         sampling='full',
     )
 
@@ -93,8 +94,7 @@ def main():
         if channels == 3
         else preds_all.reshape(height, width)
     )
-    value_min, value_max = signal.value_range
-    image = (image - value_min) / (value_max - value_min)
+    image = np.clip(signal.to_unit_range(image), 0, 1)
 
     # Ensure output directory exists
     export_dir = os.path.dirname(export_path)

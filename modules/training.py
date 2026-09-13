@@ -28,6 +28,7 @@ def fit(
     total_steps: int,
     log_interval: int,
     writer,
+    value_range: tuple[float, float],
     sampling: Sampling,
     batch_size: int | None = None,
 ) -> None:
@@ -75,7 +76,7 @@ def fit(
         optimizer.step()
 
         if step % log_interval == 0 or step == total_steps:
-            log_training_metrics(step, loss, start_time, writer)
+            log_training_metrics(step, loss, start_time, writer, value_range)
 
 
 def predict_chunks(model: torch.nn.Module, coords: torch.Tensor, chunk_size: int) -> torch.Tensor:

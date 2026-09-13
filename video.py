@@ -79,6 +79,7 @@ def main():
         total_steps=total_steps,
         log_interval=log_interval,
         writer=writer,
+        value_range=signal.value_range,
         sampling='random',
         batch_size=batch_size,
     )
@@ -90,15 +91,14 @@ def main():
     video_pred = preds_all.reshape(num_frames, height, width, channels)
     video_truth = signal.pixels.numpy().reshape(num_frames, height, width, channels)
     psnr_vals = [
-        mse_to_psnr(((video_pred[t] - video_truth[t]) ** 2).mean())
+        mse_to_psnr(((video_pred[t] - video_truth[t]) ** 2).mean(), signal.value_range)
         for t in range(num_frames)
     ]
     avg_psnr = np.mean(psnr_vals)
     print(f"Average PSNR over all frames: {avg_psnr:.6f}")
 
     # Visualization of first frame
-    value_min, value_max = signal.value_range
-    first = (video_pred[0] - value_min) / (value_max - value_min)
+    first = signal.to_unit_range(video_pred[0])
     if channels == 3:
         plt.figure(figsize=(6, 6))
         plt.imshow(np.clip(first, 0, 1))
