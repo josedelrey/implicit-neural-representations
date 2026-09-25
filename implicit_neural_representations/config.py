@@ -89,12 +89,17 @@ class ExperimentConfig:
     log_interval: int
     batch_size: int | None
     chunk_size: int
-    export_path: str
+    run_directory: str
+    reconstruction_file: str
     seed: int
 
     @property
     def channels(self) -> int:
         return 3 if self.is_rgb else 1
+
+    @property
+    def reconstruction_path(self) -> Path:
+        return Path(self.run_directory) / self.reconstruction_file
 
     def resolved_dict(self, *, device: str, value_range: tuple[float, float]) -> dict:
         training = {
@@ -105,7 +110,11 @@ class ExperimentConfig:
         }
         if self.batch_size is not None:
             training['batch_size'] = self.batch_size
-        output = {'path': self.export_path, 'chunk_size': self.chunk_size}
+        output = {
+            'directory': self.run_directory,
+            'reconstruction': self.reconstruction_file,
+            'chunk_size': self.chunk_size,
+        }
         return {
             'source_path': self.source_path,
             'working_directory': str(Path.cwd()),
@@ -146,7 +155,9 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
     training = _mapping(
         root['training'], 'training', training_required, training_optional
     )
-    output = _mapping(root['output'], 'output', {'path', 'chunk_size'})
+    output = _mapping(
+        root['output'], 'output', {'directory', 'reconstruction', 'chunk_size'}
+    )
 
     data_path = _text(data['path'], 'data.path')
     sidelength = _integer(data['sidelength'], 'data.sidelength', 1)
@@ -168,7 +179,17 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
         else None
     )
     chunk_size = _integer(output['chunk_size'], 'output.chunk_size', 1)
-    export_path = _text(output['path'], 'output.path')
+    run_directory = _text(output['directory'], 'output.directory')
+    reconstruction_file = _text(output['reconstruction'], 'output.reconstruction')
+    reconstruction_path = Path(reconstruction_file)
+    if (
+        reconstruction_path.is_absolute()
+        or '..' in reconstruction_path.parts
+        or not reconstruction_path.name
+    ):
+        raise ConfigError(
+            'output.reconstruction must be a relative path contained in output.directory'
+        )
     learning_rate_override = (
         _positive_number(training['learning_rate'], 'training.learning_rate')
         if 'learning_rate' in training
@@ -199,6 +220,7 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
         log_interval=log_interval,
         batch_size=batch_size,
         chunk_size=chunk_size,
-        export_path=export_path,
+        run_directory=run_directory,
+        reconstruction_file=reconstruction_file,
         seed=seed,
     )

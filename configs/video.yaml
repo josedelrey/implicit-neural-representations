@@ -15,5 +15,6 @@ training:
   # learning_rate: 0.001
 
 output:
-  path: outputs/akiyo_reconstructed.mp4
+  directory: outputs/video
+  reconstruction: reconstruction.mp4
   chunk_size: 4096
