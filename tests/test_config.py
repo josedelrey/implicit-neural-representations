@@ -27,12 +27,15 @@ class ExperimentConfigTests(unittest.TestCase):
         self.assertEqual(image.model_kwargs['in_features'], 2)
         self.assertEqual(image.model_kwargs['out_features'], 3)
         self.assertEqual(image.learning_rate, 1e-3)
-        self.assertEqual(image.export_path, 'outputs/test_reconstructed.png')
+        self.assertEqual(image.run_directory, 'outputs/image')
+        self.assertEqual(image.reconstruction_file, 'reconstruction.png')
+        self.assertEqual(image.reconstruction_path, Path('outputs/image/reconstruction.png'))
         self.assertIsNone(image.batch_size)
         self.assertEqual(video.model_kwargs['in_features'], 3)
         self.assertEqual(video.model_kwargs['omega0'], [0.7, 5.0, 5.0])
         self.assertEqual(video.batch_size, 32768)
-        self.assertEqual(video.export_path, 'outputs/akiyo_reconstructed.mp4')
+        self.assertEqual(video.run_directory, 'outputs/video')
+        self.assertEqual(video.reconstruction_file, 'reconstruction.mp4')
 
     def test_model_and_learning_rate_can_be_overridden_per_run(self):
         document = self._image_document()
@@ -48,6 +51,8 @@ class ExperimentConfigTests(unittest.TestCase):
         self.assertEqual(resolved['training']['learning_rate'], 0.0005)
         self.assertEqual(resolved['data']['value_range'], (-1.0, 1.0))
         self.assertEqual(resolved['working_directory'], str(Path.cwd()))
+        self.assertEqual(resolved['output']['directory'], 'outputs/image')
+        self.assertEqual(resolved['output']['reconstruction'], 'reconstruction.png')
 
     def test_scientific_notation_learning_rate_is_a_number(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -95,6 +100,11 @@ class ExperimentConfigTests(unittest.TestCase):
         document = self._image_document()
         document['model']['overrides'] = {'in_features': 3}
         with self.assertRaisesRegex(ConfigError, 'Unknown model override'):
+            self._load_document(document)
+
+        document = self._image_document()
+        document['output']['reconstruction'] = '../outside.png'
+        with self.assertRaisesRegex(ConfigError, 'contained in output.directory'):
             self._load_document(document)
 
     def test_invalid_model_dimensions_are_rejected_before_model_construction(self):

@@ -14,5 +14,6 @@ training:
   # learning_rate: 0.001
 
 output:
-  path: outputs/test_reconstructed.png
+  directory: outputs/image
+  reconstruction: reconstruction.png
   chunk_size: 4096
