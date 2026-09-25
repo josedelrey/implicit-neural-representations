@@ -27,10 +27,9 @@ uv run --locked inr-video --config configs/video.yaml
 
 Edit the YAML config files to choose the input path, model, and training
 settings. Each script determines the task, so there is no `task` setting in the
-file. Paths are relative to the working directory. Image reconstructions are
-written to `output.path`; training metrics and the fully resolved config are
-written to TensorBoard's `runs/` directory. The video script displays its
-reconstructed first frame.
+file. Paths are relative to the working directory. Image and video
+reconstructions are written to `output.path`; training metrics and the fully
+resolved config are written to TensorBoard's `runs/` directory.
 
 Architecture implementations live in
 `implicit_neural_representations/architectures/`, while model defaults live in

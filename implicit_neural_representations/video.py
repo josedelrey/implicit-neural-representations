@@ -1,6 +1,8 @@
 import argparse
 import json
-import matplotlib.pyplot as plt
+from pathlib import Path
+
+import imageio
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -8,8 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 from .config import load_experiment_config
 from .dataset import load_video_signal
 from .loss import mse_to_psnr
-from .training import fit, predict_chunks
 from .model_factory import build_model
+from .training import fit, predict_chunks
 
 
 def main():
@@ -76,17 +78,19 @@ def main():
     avg_psnr = np.mean(psnr_vals)
     print(f"Average PSNR over all frames: {avg_psnr:.6f}")
 
-    first = signal.to_unit_range(video_pred[0])
-    if config.channels == 3:
-        plt.figure(figsize=(6, 6))
-        plt.imshow(np.clip(first, 0, 1))
-        plt.title("Reconstructed First Frame")
-    else:
-        plt.figure(figsize=(6, 6))
-        plt.imshow(np.clip(first[..., 0], 0, 1), cmap='gray')
-        plt.title("Reconstructed First Frame")
-    plt.axis('off')
-    plt.show()
+    reconstructed = np.clip(signal.to_unit_range(video_pred), 0, 1)
+    frames = np.rint(255 * reconstructed).astype(np.uint8)
+    if config.channels == 1:
+        frames = frames[..., 0]
+
+    export_path = Path(config.export_path)
+    export_path.parent.mkdir(parents=True, exist_ok=True)
+    writer_options = {'fps': signal.frame_rate}
+    ffmpeg_extensions = {'.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm'}
+    if export_path.suffix.lower() in ffmpeg_extensions:
+        writer_options['macro_block_size'] = 1
+    imageio.mimwrite(export_path, frames, **writer_options)
+    print(f"Reconstructed video saved to: {config.export_path}")
 
     writer.close()
 

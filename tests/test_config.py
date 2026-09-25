@@ -6,7 +6,6 @@ import yaml
 
 from implicit_neural_representations.config import ConfigError, load_experiment_config
 
-
 CONFIG_DIR = Path(__file__).resolve().parents[1] / 'configs'
 
 
@@ -33,7 +32,7 @@ class ExperimentConfigTests(unittest.TestCase):
         self.assertEqual(video.model_kwargs['in_features'], 3)
         self.assertEqual(video.model_kwargs['omega0'], [0.7, 5.0, 5.0])
         self.assertEqual(video.batch_size, 32768)
-        self.assertIsNone(video.export_path)
+        self.assertEqual(video.export_path, 'outputs/akiyo_reconstructed.mp4')
 
     def test_model_and_learning_rate_can_be_overridden_per_run(self):
         document = self._image_document()

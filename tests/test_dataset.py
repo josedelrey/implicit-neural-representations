@@ -15,12 +15,16 @@ from implicit_neural_representations.dataset import (
 
 
 class FakeReader:
-    def __init__(self, frames):
+    def __init__(self, frames, frame_rate=25.0):
         self.frames = frames
+        self.frame_rate = frame_rate
         self.closed = False
 
     def __iter__(self):
         return iter(self.frames)
+
+    def get_meta_data(self):
+        return {'fps': self.frame_rate}
 
     def close(self):
         self.closed = True
@@ -51,6 +55,7 @@ class SignalDataTests(unittest.TestCase):
         self.assertEqual(image.signal_shape, (4, 6))
         self.assertEqual(image.coordinate_order, ('y', 'x'))
         self.assertEqual(video.signal_shape, (2, 4, 6))
+        self.assertEqual(video.frame_rate, 25.0)
         self.assertEqual(video.coordinate_order, ('t', 'y', 'x'))
         self.assertEqual(image.value_range, (-1.0, 1.0))
         self.assertEqual(video.value_range, image.value_range)
@@ -75,9 +80,8 @@ class SignalDataTests(unittest.TestCase):
         with patch(
             'implicit_neural_representations.dataset.imageio.get_reader',
             return_value=reader,
-        ):
-            with self.assertRaisesRegex(ValueError, 'contains no frames'):
-                load_video_signal('empty.mp4', sidelength=8, channels=1)
+        ), self.assertRaisesRegex(ValueError, 'contains no frames'):
+            load_video_signal('empty.mp4', sidelength=8, channels=1)
         self.assertTrue(reader.closed)
 
     def test_signal_shape_must_match_flattened_tensors(self):
