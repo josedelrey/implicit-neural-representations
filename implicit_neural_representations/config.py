@@ -1,9 +1,9 @@
 """Strict YAML configuration for image and video experiments."""
 
+import re
 from dataclasses import dataclass
 from math import isfinite
 from pathlib import Path
-import re
 
 import yaml
 
@@ -89,7 +89,7 @@ class ExperimentConfig:
     log_interval: int
     batch_size: int | None
     chunk_size: int
-    export_path: str | None
+    export_path: str
     seed: int
 
     @property
@@ -105,9 +105,7 @@ class ExperimentConfig:
         }
         if self.batch_size is not None:
             training['batch_size'] = self.batch_size
-        output = {'chunk_size': self.chunk_size}
-        if self.export_path is not None:
-            output['path'] = self.export_path
+        output = {'path': self.export_path, 'chunk_size': self.chunk_size}
         return {
             'source_path': self.source_path,
             'working_directory': str(Path.cwd()),
@@ -148,8 +146,7 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
     training = _mapping(
         root['training'], 'training', training_required, training_optional
     )
-    output_required = {'chunk_size'} | ({'path'} if task == 'image' else set())
-    output = _mapping(root['output'], 'output', output_required)
+    output = _mapping(root['output'], 'output', {'path', 'chunk_size'})
 
     data_path = _text(data['path'], 'data.path')
     sidelength = _integer(data['sidelength'], 'data.sidelength', 1)
@@ -171,7 +168,7 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
         else None
     )
     chunk_size = _integer(output['chunk_size'], 'output.chunk_size', 1)
-    export_path = _text(output['path'], 'output.path') if task == 'image' else None
+    export_path = _text(output['path'], 'output.path')
     learning_rate_override = (
         _positive_number(training['learning_rate'], 'training.learning_rate')
         if 'learning_rate' in training

@@ -8,7 +8,6 @@ import torch
 from PIL import Image
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
 
-
 VALUE_RANGE = (-1.0, 1.0)
 
 
@@ -22,6 +21,7 @@ class SignalData:
     coordinate_order: tuple[str, ...]
     value_range: tuple[float, float]
     frame_count: int = 1
+    frame_rate: float | None = None
 
     def __post_init__(self):
         if len(self.spatial_shape) != 2 or min(self.spatial_shape) <= 0:
@@ -37,6 +37,14 @@ class SignalData:
             raise ValueError('coordinate_order must be (y, x) or (t, y, x)')
         if self.coordinate_order == ('y', 'x') and self.frame_count != 1:
             raise ValueError('image signals must have one frame')
+        if self.coordinate_order == ('y', 'x') and self.frame_rate is not None:
+            raise ValueError('image signals must not have a frame rate')
+        if self.coordinate_order[0] == 't' and (
+            self.frame_rate is None
+            or not isfinite(self.frame_rate)
+            or self.frame_rate <= 0
+        ):
+            raise ValueError('video signals must have a positive frame rate')
         expected_count = prod(self.signal_shape)
         if (
             self.coords.ndim != 2
@@ -115,7 +123,9 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
     frames = []
     spatial_shape = None
     transform = None
+    frame_rate = None
     try:
+        frame_rate = reader.get_meta_data().get('fps')
         for frame in reader:
             image = Image.fromarray(frame).convert('RGB' if channels == 3 else 'L')
             if transform is None:
@@ -136,5 +146,6 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
         spatial_shape,
         ('t', 'y', 'x'),
         VALUE_RANGE,
-        frame_count,
+        frame_count=frame_count,
+        frame_rate=frame_rate,
     )
