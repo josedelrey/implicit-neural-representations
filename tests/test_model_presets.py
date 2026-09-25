@@ -137,6 +137,14 @@ class ModelPresetTests(unittest.TestCase):
                 "finer", "image", 3, overrides={"init_method": "unknown"}
             )
 
+    def test_finer_rejects_removed_noop_options(self):
+        for option in ("alphaType", "alphaReqGrad"):
+            with (
+                self.subTest(option=option),
+                self.assertRaisesRegex(ValueError, "Unknown model override"),
+            ):
+                resolve_model_preset("finer", "image", 3, overrides={option: True})
+
     def test_frinr_modes_preserve_output_shape(self):
         for mode in (
             "relu",
