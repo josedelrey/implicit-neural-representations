@@ -164,6 +164,12 @@ class FRINR(nn.Module):
         {"relu", "relu+fr", "relu+pe", "relu+pe+fr", "sin", "sin+fr"}
     )
 
+    @classmethod
+    def validate_mode(cls, mode: str) -> None:
+        """Reject unsupported architecture combinations."""
+        if mode not in cls.MODES:
+            raise ValueError(f"Unsupported FR-INR mode: {mode!r}")
+
     def __init__(
         self,
         mode: str,
@@ -179,8 +185,7 @@ class FRINR(nn.Module):
         mapping_input: int = 256,
     ) -> None:
         super().__init__()
-        if mode not in self.MODES:
-            raise ValueError(f"Unsupported FR-INR mode: {mode!r}")
+        self.validate_mode(mode)
         if hidden_features <= 0 or hidden_layers < 0:
             raise ValueError(
                 "hidden_features must be positive and hidden_layers non-negative"

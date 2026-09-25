@@ -85,6 +85,14 @@ class ModelPresetTests(unittest.TestCase):
             ):
                 resolve_model_preset("frinr", "image", 3, overrides={parameter: 0})
 
+    def test_frinr_rejects_unsupported_mode_combinations(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported FR-INR mode"):
+            resolve_model_preset(
+                "frinr", "image", 3, overrides={"mode": "sin+pe"}
+            )
+        with self.assertRaisesRegex(ValueError, "Unknown model override"):
+            resolve_model_preset("frinr", "image", 3, overrides={"pe": True})
+
     def test_finer_initialization_overrides_preserve_defaults(self):
         torch.manual_seed(7)
         default = FinerLayer(4, 8, omega=30)
