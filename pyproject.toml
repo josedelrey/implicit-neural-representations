@@ -1,7 +1,8 @@
 [project]
 name = "implicit-neural-representations"
 version = "0.1.0"
-license = "MIT"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "LICENSE-SIREN-MIT", "LICENSE-WIRE-MIT"]
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "torch>=2.2",
@@ -21,7 +22,7 @@ inr-image = "implicit_neural_representations.image:main"
 inr-video = "implicit_neural_representations.video:main"
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

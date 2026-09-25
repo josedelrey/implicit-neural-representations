@@ -1,3 +1,10 @@
+# SPDX-License-Identifier: MIT
+"""SIREN layers adapted from Sitzmann et al. (2020).
+
+Paper: https://arxiv.org/abs/2006.09661
+Code: https://github.com/vsitzmann/siren
+"""
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -5,92 +12,93 @@ from collections import OrderedDict
 
 
 class SineLayer(nn.Module):
-    """
-    SineLayer: a fully-connected layer with sine activation.
-    
-    This is the original implementation from "Implicit Neural Representations with Periodic Activation Functions"
-    by Sitzmann et al. (2020). See: https://github.com/vsitzmann/siren
+    """Linear layer with SIREN sine activation and initialization."""
 
-    If is_first=True, omega_0 is a frequency factor which simply multiplies the activations before the 
-    nonlinearity. Different signals may require different omega_0 in the first layer - this is a hyperparameter.
-    
-    If is_first=False, then the weights will be divided by omega_0 to keep the activation magnitude constant
-    while boosting gradients to the weight matrix (see supplement Sec. 1.5).
-    """
-    def __init__(self, in_features, out_features, bias=True,
-                 is_first=False, omega_0=30):
+    def __init__(
+        self, in_features, out_features, bias=True, is_first=False, omega_0=30
+    ):
         super().__init__()
         self.omega_0 = omega_0
         self.is_first = is_first
         self.in_features = in_features
         self.linear = nn.Linear(in_features, out_features, bias=bias)
         self.init_weights()
-    
+
     def init_weights(self):
         with torch.no_grad():
             if self.is_first:
-                self.linear.weight.uniform_(-1 / self.in_features, 1 / self.in_features)      
+                self.linear.weight.uniform_(-1 / self.in_features, 1 / self.in_features)
             else:
-                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0, 
-                                             np.sqrt(6 / self.in_features) / self.omega_0)
-        
+                self.linear.weight.uniform_(
+                    -np.sqrt(6 / self.in_features) / self.omega_0,
+                    np.sqrt(6 / self.in_features) / self.omega_0,
+                )
+
     def forward(self, input):
         return torch.sin(self.omega_0 * self.linear(input))
-    
-    def forward_with_intermediate(self, input): 
-        # For visualization of activation distributions
+
+    def forward_with_intermediate(self, input):
         intermediate = self.omega_0 * self.linear(input)
         return torch.sin(intermediate), intermediate
 
 
 class Siren(nn.Module):
-    """
-    SIREN model composed of multiple SineLayer modules and a final output layer.
-    
-    This is the original implementation from "Implicit Neural Representations with Periodic Activation Functions"
-    by Sitzmann et al. (2020). See: https://github.com/vsitzmann/siren
+    """Stack sine layers with an optional linear output layer."""
 
-    Args:
-         in_features (int): Number of input features.
-         hidden_features (int): Number of hidden features.
-         hidden_layers (int): Number of hidden layers.
-         out_features (int): Number of output features.
-         outermost_linear (bool): If True, uses a final linear layer without a sine activation.
-         first_omega_0 (float): Frequency factor for the first SineLayer.
-         hidden_omega_0 (float): Frequency factor for subsequent SineLayers.
-    """
-    def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=False, 
-                 first_omega_0=30, hidden_omega_0=30.):
+    def __init__(
+        self,
+        in_features,
+        hidden_features,
+        hidden_layers,
+        out_features,
+        outermost_linear=False,
+        first_omega_0=30,
+        hidden_omega_0=30.0,
+    ):
         super().__init__()
-        
+
         self.net = []
-        self.net.append(SineLayer(in_features, hidden_features, 
-                                  is_first=True, omega_0=first_omega_0))
+        self.net.append(
+            SineLayer(
+                in_features, hidden_features, is_first=True, omega_0=first_omega_0
+            )
+        )
 
         for i in range(hidden_layers):
-            self.net.append(SineLayer(hidden_features, hidden_features, 
-                                      is_first=False, omega_0=hidden_omega_0))
+            self.net.append(
+                SineLayer(
+                    hidden_features,
+                    hidden_features,
+                    is_first=False,
+                    omega_0=hidden_omega_0,
+                )
+            )
 
         if outermost_linear:
             final_linear = nn.Linear(hidden_features, out_features)
             with torch.no_grad():
-                final_linear.weight.uniform_(-np.sqrt(6 / hidden_features) / hidden_omega_0, 
-                                             np.sqrt(6 / hidden_features) / hidden_omega_0)
+                final_linear.weight.uniform_(
+                    -np.sqrt(6 / hidden_features) / hidden_omega_0,
+                    np.sqrt(6 / hidden_features) / hidden_omega_0,
+                )
             self.net.append(final_linear)
         else:
-            self.net.append(SineLayer(hidden_features, out_features, 
-                                      is_first=False, omega_0=hidden_omega_0))
-        
+            self.net.append(
+                SineLayer(
+                    hidden_features,
+                    out_features,
+                    is_first=False,
+                    omega_0=hidden_omega_0,
+                )
+            )
+
         self.net = nn.Sequential(*self.net)
-    
+
     def forward(self, coords):
         return self.net(coords)
 
     def forward_with_activations(self, coords, retain_grad=False):
-        """
-        Returns not only model output, but also intermediate activations.
-        Only used for visualizing activations later.
-        """
+        """Return outputs and intermediate activations for inspection."""
         activations = OrderedDict()
 
         activation_count = 0
@@ -102,7 +110,9 @@ class Siren(nn.Module):
                 if retain_grad:
                     x.retain_grad()
                     intermed.retain_grad()
-                activations['_'.join((str(layer.__class__), f"{activation_count}"))] = intermed
+                activations['_'.join((str(layer.__class__), f"{activation_count}"))] = (
+                    intermed
+                )
                 activation_count += 1
             else:
                 x = layer(x)

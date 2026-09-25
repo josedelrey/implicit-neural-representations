@@ -1,248 +1,265 @@
+"""FR-INR implemented from Shi, Zhou, and Gu (2024).
+
+Paper: https://arxiv.org/abs/2401.07402
+
+Hidden-to-hidden weights can be represented as ``W = coefficients @ basis``.
+The coefficient matrix is trainable and the cosine basis is fixed, matching
+Equations 2--4 of the paper.
+"""
+
+import math
+from typing import ClassVar
+
 import torch
-import torch.nn as nn
-import numpy as np
+from torch import nn
+from torch.nn import functional as F
 
 from ..encoding import FrequencyEncoding
 
 
-class Fourier_reparam_linear(nn.Module):
-    def __init__(self,in_features,out_features,high_freq_num,low_freq_num,phi_num,alpha):
-        super(Fourier_reparam_linear,self).__init__()
+def _fourier_basis(
+    in_features: int,
+    frequency_num: int,
+    phase_num: int,
+) -> torch.Tensor:
+    """Construct fixed cosine bases across the maximum selected period."""
+    if in_features <= 0:
+        raise ValueError("in_features must be positive")
+    if frequency_num <= 0:
+        raise ValueError("frequency_num must be positive")
+    if phase_num <= 0:
+        raise ValueError("phase_num must be positive")
+
+    indices = torch.arange(1, frequency_num + 1, dtype=torch.float64)
+    frequency = torch.cat((indices / frequency_num, indices))
+    phase = 2.0 * math.pi * torch.arange(phase_num, dtype=torch.float64) / phase_num
+
+    maximum_period = 2.0 * math.pi * frequency_num
+    positions = torch.linspace(
+        -maximum_period / 2.0,
+        maximum_period / 2.0,
+        in_features,
+        dtype=torch.float64,
+    )
+    basis = torch.cos(
+        frequency[:, None, None] * positions[None, None, :] + phase[None, :, None]
+    )
+    return basis.reshape(-1, in_features).float()
+
+
+class FourierReparameterizedLinear(nn.Module):
+    """Linear map whose effective weight is a learned mixture of fixed bases."""
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        frequency_num: int,
+        phase_num: int,
+        *,
+        omega: float | None = None,
+    ) -> None:
+        super().__init__()
+        basis = _fourier_basis(in_features, frequency_num, phase_num)
         self.in_features = in_features
         self.out_features = out_features
-        self.high_freq_num =high_freq_num
-        self.low_freq_num = low_freq_num
-        self.phi_num = phi_num
-        self.alpha=alpha
-        self.bases=self.init_bases()
-        self.lamb=self.init_lamb()
-        self.bias=nn.Parameter(torch.Tensor(self.out_features,1),requires_grad=True)
-        self.init_bias()
+        self.register_buffer("basis", basis)
+        self.coefficients = nn.Parameter(torch.empty(out_features, basis.shape[0]))
+        self.bias = nn.Parameter(torch.empty(out_features))
+        self._initialize_coefficients(omega)
 
-    def init_bases(self):
-        phi_set=np.array([2*np.pi*i/self.phi_num for i in range(self.phi_num)])
-        high_freq=np.array([i+1 for i in range(self.high_freq_num)])
-        low_freq=np.array([(i+1)/self.low_freq_num for i in range(self.low_freq_num)])
-        if len(low_freq)!=0:
-            T_max=2*np.pi/low_freq[0]
-        else:
-            T_max=2*np.pi/min(high_freq) # 取最大周期作为取点区间
-        points=np.linspace(-T_max/2,T_max/2,self.in_features)
-        bases=torch.Tensor((self.high_freq_num+self.low_freq_num)*self.phi_num,self.in_features)
-        i=0
-        for freq in low_freq:
-            for phi in phi_set:
-                base=torch.tensor([np.cos(freq*x+phi) for x in points])
-                bases[i,:]=base
-                i+=1
-        for freq in high_freq:
-            for phi in phi_set:
-                base=torch.tensor([np.cos(freq*x+phi) for x in points])
-                bases[i,:]=base
-                i+=1
-        bases=self.alpha*bases
-        bases=nn.Parameter(bases,requires_grad=False)
-        return bases
-
-    
-    def init_lamb(self):
-        self.lamb=torch.Tensor(self.out_features,(self.high_freq_num+self.low_freq_num)*self.phi_num)
+    def _initialize_coefficients(self, omega: float | None) -> None:
+        if omega is not None and (not math.isfinite(omega) or omega <= 0):
+            raise ValueError("omega must be a finite, positive number")
+        basis_count = self.basis.shape[0]
+        norms = self.basis.norm(dim=1)
+        if torch.any(norms == 0):
+            raise ValueError("Fourier basis contains a zero-norm vector")
+        bounds = math.sqrt(6.0 / basis_count) / norms
+        if omega is not None:
+            bounds = bounds / omega
         with torch.no_grad():
-            m=(self.low_freq_num+self.high_freq_num)*self.phi_num
-            for i in range(m):
-                dominator=torch.norm(self.bases[i,:],p=2)
-                self.lamb[:,i]=nn.init.uniform_(self.lamb[:,i],-np.sqrt(6/m)/dominator,np.sqrt(6/m)/dominator)
-        self.lamb=nn.Parameter(self.lamb,requires_grad=True)
-        return self.lamb
+            samples = 2.0 * torch.rand_like(self.coefficients) - 1.0
+            self.coefficients.copy_(samples * bounds.unsqueeze(0))
+            bias_bound = 1.0 / math.sqrt(self.in_features)
+            self.bias.uniform_(-bias_bound, bias_bound)
 
-    def init_bias(self):
+    @property
+    def weight(self) -> torch.Tensor:
+        return self.coefficients @ self.basis
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return F.linear(inputs, self.weight, self.bias)
+
+    def merged_linear(self) -> nn.Linear:
+        """Return the equivalent ordinary linear layer for inference."""
+        linear = nn.Linear(
+            self.in_features,
+            self.out_features,
+            device=self.bias.device,
+            dtype=self.bias.dtype,
+        )
         with torch.no_grad():
-            nn.init.zeros_(self.bias)
-        
-    def forward(self,x):
-        weight=torch.matmul(self.lamb,self.bases)
-        output=torch.matmul(x,weight.transpose(0,1))
-        output=output+self.bias.T
-        return output
+            linear.weight.copy_(self.weight)
+            linear.bias.copy_(self.bias)
+        return linear
+
 
 class SineLayer(nn.Module):
-    def __init__(self, in_features, out_features, bias=True,
-                 is_first=False, omega_0=30):
+    """SIREN-style affine layer followed by a sine activation."""
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        *,
+        omega: float,
+        is_first: bool = False,
+    ) -> None:
         super().__init__()
-        self.omega_0 = omega_0
-        self.is_first = is_first
-        self.in_features = in_features
-        self.linear = nn.Linear(in_features, out_features, bias=bias)
-        self.init_weights()
-
-    def init_weights(self):
+        if in_features <= 0 or out_features <= 0:
+            raise ValueError("in_features and out_features must be positive")
+        if not math.isfinite(omega) or omega <= 0:
+            raise ValueError("omega must be a finite, positive number")
+        self.omega = float(omega)
+        self.linear = nn.Linear(in_features, out_features)
+        bound = (
+            1.0 / in_features if is_first else math.sqrt(6.0 / in_features) / self.omega
+        )
         with torch.no_grad():
-            if self.is_first:
-                self.linear.weight.uniform_(-1 / self.in_features,
-                                             1 / self.in_features)
-            else:
-                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0,
-                                             np.sqrt(6 / self.in_features) / self.omega_0)
+            self.linear.weight.uniform_(-bound, bound)
 
-    def forward(self, input):
-        return torch.sin(self.omega_0 * self.linear(input))
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return torch.sin(self.omega * self.linear(inputs))
 
-class sin_fr_layer(nn.Module):
-    def __init__(self, in_features, out_features, high_freq_num,low_freq_num,phi_num,alpha,omega_0=30.0):
+
+class ReparameterizedSineLayer(nn.Module):
+    """Fourier-reparameterized affine map followed by sine."""
+
+    def __init__(
+        self,
+        features: int,
+        frequency_num: int,
+        phase_num: int,
+        omega: float,
+    ) -> None:
         super().__init__()
-        super(sin_fr_layer,self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.high_freq_num =high_freq_num
-        self.low_freq_num = low_freq_num
-        self.phi_num = phi_num
-        self.alpha=alpha
-        self.omega_0=omega_0
-        self.bases=self.init_bases()
-        self.lamb=self.init_lamb()
-        self.bias=nn.Parameter(torch.Tensor(self.out_features,1),requires_grad=True)
-        self.init_bias()
+        self.omega = float(omega)
+        self.linear = FourierReparameterizedLinear(
+            features,
+            features,
+            frequency_num,
+            phase_num,
+            omega=omega,
+        )
 
-    def init_bases(self):
-        phi_set=np.array([2*np.pi*i/self.phi_num for i in range(self.phi_num)])
-        high_freq=np.array([i+1 for i in range(self.high_freq_num)])
-        low_freq=np.array([(i+1)/self.low_freq_num for i in range(self.low_freq_num)])
-        if len(low_freq)!=0:
-            T_max=2*np.pi/low_freq[0]
-        else:
-            T_max=2*np.pi/min(high_freq) # 取最大周期作为取点区间
-        points=np.linspace(-T_max/2,T_max/2,self.in_features)
-        bases=torch.Tensor((self.high_freq_num+self.low_freq_num)*self.phi_num,self.in_features)
-        i=0
-        for freq in low_freq:
-            for phi in phi_set:
-                base=torch.tensor([np.cos(freq*x+phi) for x in points])
-                bases[i,:]=base
-                i+=1
-        for freq in high_freq:
-            for phi in phi_set:
-                base=torch.tensor([np.cos(freq*x+phi) for x in points])
-                bases[i,:]=base
-                i+=1
-        bases=self.alpha*bases
-        bases=nn.Parameter(bases,requires_grad=False)
-        return bases
-
-    
-    def init_lamb(self):
-        self.lamb=torch.Tensor(self.out_features,(self.high_freq_num+self.low_freq_num)*self.phi_num)
-        with torch.no_grad():
-            m=(self.low_freq_num+self.high_freq_num)*self.phi_num
-            for i in range(m):
-                dominator=torch.norm(self.bases[i,:],p=2)
-                self.lamb[:,i]=nn.init.uniform_(self.lamb[:,i],-np.sqrt(6/m)/dominator/self.omega_0,np.sqrt(6/m)/dominator/self.omega_0)
-        self.lamb=nn.Parameter(self.lamb,requires_grad=True)
-        return self.lamb
-
-    def init_bias(self):
-        with torch.no_grad():
-            nn.init.zeros_(self.bias)
-        
-    def forward(self,x):
-        weight=torch.matmul(self.lamb,self.bases)
-        output=torch.matmul(x,weight.transpose(0,1))
-        output=output+self.bias.T
-        return torch.sin(self.omega_0*output)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return torch.sin(self.omega * self.linear(inputs))
 
 
 class FRINR(nn.Module):
-    def __init__(self,mode,in_features,hidden_features,hidden_layers,out_features,outermost_linear,high_freq_num,low_freq_num,
-    phi_num,alpha,first_omega_0,hidden_omega_0,pe):
+    """MLP with optional positional encoding or Fourier reparameterization."""
+
+    MODES: ClassVar[frozenset[str]] = frozenset(
+        {"relu", "relu+fr", "relu+pe", "relu+pe+fr", "sin", "sin+fr"}
+    )
+
+    def __init__(
+        self,
+        mode: str,
+        in_features: int,
+        hidden_features: int,
+        hidden_layers: int,
+        out_features: int,
+        outermost_linear: bool,
+        frequency_num: int,
+        phase_num: int,
+        first_omega_0: float,
+        hidden_omega_0: float,
+        mapping_input: int = 256,
+    ) -> None:
         super().__init__()
-        self.pe=pe
-        if pe==True:
-            self.positional_encoding = FrequencyEncoding(
-                in_features=in_features, mapping_input=256, use_nyquist=True
+        if mode not in self.MODES:
+            raise ValueError(f"Unsupported FR-INR mode: {mode!r}")
+        if hidden_features <= 0 or hidden_layers < 0:
+            raise ValueError(
+                "hidden_features must be positive and hidden_layers non-negative"
             )
-            in_features=self.positional_encoding.out_dim
-        self.net=[]
-        if mode=='relu':
-            self.net.append(nn.Linear(in_features,hidden_features))
-            self.net.append(nn.ReLU())
-            for i in range(hidden_layers):
-                self.net.append(nn.Linear(hidden_features,hidden_features))
-                self.net.append(nn.ReLU())
-        
-        if mode=='relu+fr':
-            self.net.append(nn.Linear(in_features,hidden_features))
-            self.net.append(nn.ReLU())
-            for i in range(hidden_layers):
-                self.net.append(Fourier_reparam_linear(hidden_features,hidden_features,high_freq_num,low_freq_num,phi_num,alpha))
-                self.net.append(nn.ReLU())
-        
-        if mode=='relu+pe':
-            self.net.append(nn.Linear(in_features,hidden_features))
-            self.net.append(nn.ReLU())
-            for i in range(hidden_layers):
-                self.net.append(nn.Linear(hidden_features,hidden_features))
-                self.net.append(nn.ReLU())
 
-        if mode=='sin':
-            self.net.append(SineLayer(in_features, hidden_features,is_first=True, omega_0=first_omega_0))
-            for i in range(hidden_layers):
-                self.net.append(SineLayer(hidden_features, hidden_features,is_first=False, omega_0=hidden_omega_0))
-        
-        if mode=='sin+fr':
-            self.net.append(SineLayer(in_features, hidden_features,is_first=True, omega_0=first_omega_0))
-            for i in range(hidden_layers):
-                self.net.append(sin_fr_layer(hidden_features,hidden_features,high_freq_num,low_freq_num,phi_num,alpha,hidden_omega_0))
-        #末端初始化这边还是需要修改
-        if outermost_linear==True:
-            final_linear = nn.Linear(hidden_features, out_features)
-            if mode =='sin+fr' or mode=='sin':
-                with torch.no_grad():
-                    final_linear.weight.uniform_(-np.sqrt(6/ hidden_features)/hidden_omega_0,np.sqrt(6 / hidden_features)/hidden_omega_0)
-            else:
-                with torch.no_grad():
-                    final_linear.weight.uniform_(-np.sqrt(6/ hidden_features),np.sqrt(6 / hidden_features)) 
-            self.net.append(final_linear)
+        self.mode = mode
+        self.encoding: nn.Module
+        if "+pe" in mode:
+            self.encoding = FrequencyEncoding(
+                in_features, mapping_input=mapping_input, use_nyquist=True
+            )
+            encoded_features = self.encoding.out_dim
         else:
-            if mode=='relu' or mode=='relu+fr':
-                final_linear=nn.Linear(hidden_features,out_features)
-                self.net.append(final_linear)
-                self.net.append(nn.ReLU())
-            if mode=='sin' or mode=='sin+fr':
-                self.net.append(SineLayer(hidden_features, out_features,is_first=False, omega_0=hidden_omega_0))
-        
-        self.net = nn.Sequential(*self.net)
-    
-    def forward(self, x):
-        if self.pe==True:
-            x=self.positional_encoding(x)
-        output=self.net(x)
-        return output
+            self.encoding = nn.Identity()
+            encoded_features = in_features
 
-def get_INR(mode,in_features, hidden_features, hidden_layers,
-            out_features, outermost_linear, high_freq_num,low_freq_num,phi_num,alpha,first_omega_0,
-            hidden_omega_0, pe):
-    '''
-        Function to get a class instance for a given type of
-        implicit neural representation
-        
-        Inputs:
-            mode: non-linear activation functions and Fourier reparameterized training
-            in_features: Number of input features. 2 for image, 3 for volume and so on.
-            hidden_features: Number of features per hidden layer
-            hidden_layers: Number of hidden layers
-            out_features; Number of outputs features. 3 for color image, 1 for grayscale or volume and so on
-            outermost_linear (True): If True, do not apply nonlin
-                just before output
-            high_freq_num: The number of the high frequence in the Fourier bases B. 
-            low_freq_num: The number of the low frequence in the Fourier bases B.
-            phi_num: The number of the phase in the Fourier bases B.
-            (high_freq_num, low_freq_num, phi_num): The detailed description can be found in Sec. 3.2 of our paper
-            alpha: The role can be found in Appendix A. Detailed proof of Theorem 2 of our paper. Empirically, alpha=0.05 for relu; 
-                alpha=0.01 for sin and so on.
-            first_omega0 (30): For siren: Omega for first layer
-            hidden_omega0 (30): For siren and siren+fr: Omega for hidden layers
-            pos_encode (False): If True apply positional encoding
-        Output: An INR class instance
-    '''
-    model=FRINR(mode, in_features, hidden_features, hidden_layers, out_features, outermost_linear, high_freq_num, low_freq_num, phi_num, alpha, first_omega_0, hidden_omega_0, pe)
-    
-    return model
+        uses_sine = mode.startswith("sin")
+        uses_fr = mode.endswith("+fr")
+        layers: list[nn.Module] = []
+        if uses_sine:
+            layers.append(
+                SineLayer(
+                    encoded_features,
+                    hidden_features,
+                    omega=first_omega_0,
+                    is_first=True,
+                )
+            )
+        else:
+            layers.extend((nn.Linear(encoded_features, hidden_features), nn.ReLU()))
+
+        for _ in range(hidden_layers):
+            if uses_fr and uses_sine:
+                layers.append(
+                    ReparameterizedSineLayer(
+                        hidden_features,
+                        frequency_num,
+                        phase_num,
+                        hidden_omega_0,
+                    )
+                )
+            elif uses_fr:
+                layers.extend(
+                    (
+                        FourierReparameterizedLinear(
+                            hidden_features,
+                            hidden_features,
+                            frequency_num,
+                            phase_num,
+                        ),
+                        nn.ReLU(),
+                    )
+                )
+            elif uses_sine:
+                layers.append(
+                    SineLayer(
+                        hidden_features,
+                        hidden_features,
+                        omega=hidden_omega_0,
+                    )
+                )
+            else:
+                layers.extend((nn.Linear(hidden_features, hidden_features), nn.ReLU()))
+
+        if outermost_linear:
+            output = nn.Linear(hidden_features, out_features)
+            if uses_sine:
+                bound = math.sqrt(6.0 / hidden_features) / hidden_omega_0
+                with torch.no_grad():
+                    output.weight.uniform_(-bound, bound)
+            layers.append(output)
+        elif uses_sine:
+            layers.append(
+                SineLayer(hidden_features, out_features, omega=hidden_omega_0)
+            )
+        else:
+            layers.extend((nn.Linear(hidden_features, out_features), nn.ReLU()))
+
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.net(self.encoding(inputs))

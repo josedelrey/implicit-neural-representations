@@ -21,9 +21,13 @@ class StrictSafeLoader(yaml.SafeLoader):
         for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
             if not isinstance(key, str):
-                raise ConfigError(f'YAML keys must be strings (line {key_node.start_mark.line + 1})')
+                raise ConfigError(
+                    f'YAML keys must be strings (line {key_node.start_mark.line + 1})'
+                )
             if key in mapping:
-                raise ConfigError(f'Duplicate YAML key {key!r} (line {key_node.start_mark.line + 1})')
+                raise ConfigError(
+                    f'Duplicate YAML key {key!r} (line {key_node.start_mark.line + 1})'
+                )
             mapping[key] = self.construct_object(value_node, deep=deep)
         return mapping
 
@@ -36,14 +40,18 @@ StrictSafeLoader.add_implicit_resolver(
 )
 
 
-def _mapping(value, label: str, required: set[str], optional: set[str] | None = None) -> dict:
+def _mapping(
+    value, label: str, required: set[str], optional: set[str] | None = None
+) -> dict:
     if not isinstance(value, dict):
         raise ConfigError(f'{label} must be a mapping')
     allowed = required | (optional or set())
     missing = required - value.keys()
     unknown = value.keys() - allowed
     if missing:
-        raise ConfigError(f'{label} is missing required keys: {", ".join(sorted(missing))}')
+        raise ConfigError(
+            f'{label} is missing required keys: {", ".join(sorted(missing))}'
+        )
     if unknown:
         raise ConfigError(f'{label} has unknown keys: {", ".join(sorted(unknown))}')
     return value
@@ -137,7 +145,9 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
     training_optional = {'learning_rate', 'seed'}
     if task == 'video':
         training_required.add('batch_size')
-    training = _mapping(root['training'], 'training', training_required, training_optional)
+    training = _mapping(
+        root['training'], 'training', training_required, training_optional
+    )
     output_required = {'chunk_size'} | ({'path'} if task == 'image' else set())
     output = _mapping(root['output'], 'output', output_required)
 
@@ -153,23 +163,28 @@ def load_experiment_config(path: str, task: str) -> ExperimentConfig:
     total_steps = _integer(training['total_steps'], 'training.total_steps', 0)
     log_interval = _integer(training['log_interval'], 'training.log_interval', 1)
     seed = _integer(training.get('seed', 42), 'training.seed', 0)
-    if seed >= 2 ** 32:
+    if seed >= 2**32:
         raise ConfigError('training.seed must be less than 2**32')
     batch_size = (
         _integer(training['batch_size'], 'training.batch_size', 1)
-        if task == 'video' else None
+        if task == 'video'
+        else None
     )
     chunk_size = _integer(output['chunk_size'], 'output.chunk_size', 1)
     export_path = _text(output['path'], 'output.path') if task == 'image' else None
     learning_rate_override = (
         _positive_number(training['learning_rate'], 'training.learning_rate')
-        if 'learning_rate' in training else None
+        if 'learning_rate' in training
+        else None
     )
 
     try:
         preset = resolve_model_preset(
-            model_type, task, 3 if is_rgb else 1,
-            overrides=overrides, learning_rate=learning_rate_override,
+            model_type,
+            task,
+            3 if is_rgb else 1,
+            overrides=overrides,
+            learning_rate=learning_rate_override,
         )
     except (TypeError, ValueError) as exc:
         raise ConfigError(str(exc)) from exc

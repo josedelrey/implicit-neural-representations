@@ -29,29 +29,49 @@ class TrainingTests(unittest.TestCase):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
 
     def test_full_sampling_runs_exact_number_of_updates(self):
-        with patch('implicit_neural_representations.training.log_training_metrics') as log, patch.object(
-            self.optimizer, 'step', wraps=self.optimizer.step
-        ) as step:
+        with (
+            patch(
+                'implicit_neural_representations.training.log_training_metrics'
+            ) as log,
+            patch.object(self.optimizer, 'step', wraps=self.optimizer.step) as step,
+        ):
             fit(
-                self.model, self.coords, self.pixels, self.optimizer,
-                total_steps=3, log_interval=2, writer=None,
-                value_range=(-1.0, 1.0), sampling='full',
+                self.model,
+                self.coords,
+                self.pixels,
+                self.optimizer,
+                total_steps=3,
+                log_interval=2,
+                writer=None,
+                value_range=(-1.0, 1.0),
+                sampling='full',
             )
 
         self.assertEqual(step.call_count, 3)
         self.assertEqual(self.model.batch_sizes, [5, 5, 5])
         self.assertEqual([call.args[0] for call in log.call_args_list], [2, 3])
-        self.assertEqual([call.args[4] for call in log.call_args_list], [(-1.0, 1.0)] * 2)
+        self.assertEqual(
+            [call.args[4] for call in log.call_args_list], [(-1.0, 1.0)] * 2
+        )
 
     def test_random_sampling_uses_requested_batch_size(self):
-        with patch('implicit_neural_representations.training.log_training_metrics') as log, patch.object(
-            self.optimizer, 'step', wraps=self.optimizer.step
-        ) as step:
+        with (
+            patch(
+                'implicit_neural_representations.training.log_training_metrics'
+            ) as log,
+            patch.object(self.optimizer, 'step', wraps=self.optimizer.step) as step,
+        ):
             fit(
-                self.model, self.coords, self.pixels, self.optimizer,
-                total_steps=4, log_interval=3, writer=None,
+                self.model,
+                self.coords,
+                self.pixels,
+                self.optimizer,
+                total_steps=4,
+                log_interval=3,
+                writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='random', batch_size=2,
+                sampling='random',
+                batch_size=2,
             )
 
         self.assertEqual(step.call_count, 4)
@@ -70,9 +90,15 @@ class TrainingTests(unittest.TestCase):
     def test_invalid_sampling_configuration_fails_before_training(self):
         with self.assertRaisesRegex(ValueError, 'positive batch_size'):
             fit(
-                self.model, self.coords, self.pixels, self.optimizer,
-                total_steps=1, log_interval=1, writer=None,
-                value_range=(-1.0, 1.0), sampling='random',
+                self.model,
+                self.coords,
+                self.pixels,
+                self.optimizer,
+                total_steps=1,
+                log_interval=1,
+                writer=None,
+                value_range=(-1.0, 1.0),
+                sampling='random',
             )
         self.assertEqual(self.model.batch_sizes, [])
 
@@ -82,10 +108,16 @@ class TrainingTests(unittest.TestCase):
         optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
         with patch('implicit_neural_representations.training.log_training_metrics'):
             fit(
-                self.model, self.coords, self.pixels, optimizer,
-                total_steps=2, log_interval=1, writer=None,
+                self.model,
+                self.coords,
+                self.pixels,
+                optimizer,
+                total_steps=2,
+                log_interval=1,
+                writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='random', batch_size=2,
+                sampling='random',
+                batch_size=2,
             )
         predictions = predict_chunks(self.model, self.coords, chunk_size=2)
 
