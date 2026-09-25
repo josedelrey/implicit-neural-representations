@@ -5,9 +5,10 @@ Paper: https://arxiv.org/abs/2301.05187
 Code: https://github.com/vishwa91/wire
 """
 
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
-from collections import OrderedDict
 
 from ..encoding import PositionalEncoding
 

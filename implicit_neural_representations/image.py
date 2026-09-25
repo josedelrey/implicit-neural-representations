@@ -1,6 +1,7 @@
-import os
 import argparse
 import json
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -8,8 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from .config import load_experiment_config
 from .dataset import load_image_signal
-from .training import fit, predict_chunks
 from .model_factory import build_model
+from .training import fit, predict_chunks
 
 
 def main():

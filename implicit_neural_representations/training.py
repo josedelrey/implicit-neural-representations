@@ -7,7 +7,6 @@ import torch
 
 from .utils import log_training_metrics
 
-
 Sampling = Literal['full', 'random']
 
 
