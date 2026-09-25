@@ -1,6 +1,17 @@
 [project]
 name = "implicit-neural-representations"
 version = "0.1.0"
+description = "Python experiments for fitting implicit neural representations to images and videos."
+readme = "README.md"
+authors = [
+    { name = "José del Rey", email = "josedelreyortega@gmail.com" },
+]
+keywords = [
+    "implicit neural representations",
+    "neural fields",
+    "computer vision",
+    "pytorch",
+]
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
 requires-python = ">=3.10,<3.14"
@@ -23,6 +34,10 @@ dev = ["ruff==0.16.9"]
 [project.scripts]
 inr-image = "implicit_neural_representations.image:main"
 inr-video = "implicit_neural_representations.video:main"
+
+[project.urls]
+Repository = "https://github.com/josedelrey/implicit-neural-representations"
+Issues = "https://github.com/josedelrey/implicit-neural-representations/issues"
 
 [build-system]
 requires = ["setuptools>=77.0.3"]
