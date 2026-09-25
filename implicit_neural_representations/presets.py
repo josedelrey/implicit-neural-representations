@@ -218,8 +218,6 @@ def _validate_override(model_type: str, key: str, value, default) -> None:
             )
             else 0
         )
-        if key == "hidden_layers" and model_type == "mlp":
-            valid = valid and value >= 1
     elif type(default) in (int, float):
         valid = type(value) in (int, float) and isfinite(value) and value > 0
     elif type(default) is str:
