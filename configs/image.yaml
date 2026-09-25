@@ -1,5 +1,5 @@
 data:
-  path: images/test.jpg
+  path: examples/test.jpg
   sidelength: 256
   is_rgb: true
 

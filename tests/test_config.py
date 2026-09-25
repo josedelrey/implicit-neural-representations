@@ -7,7 +7,7 @@ import yaml
 from implicit_neural_representations.config import ConfigError, load_experiment_config
 
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / 'config'
+CONFIG_DIR = Path(__file__).resolve().parents[1] / 'configs'
 
 
 class ExperimentConfigTests(unittest.TestCase):
@@ -54,7 +54,10 @@ class ExperimentConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'experiment.yaml'
             contents = (CONFIG_DIR / 'image.yaml').read_text(encoding='utf-8')
-            path.write_text(contents.replace('  # learning_rate: 0.001', '  learning_rate: 1e-3'), encoding='utf-8')
+            path.write_text(
+                contents.replace('  # learning_rate: 0.001', '  learning_rate: 1e-3'),
+                encoding='utf-8',
+            )
             config = load_experiment_config(str(path), 'image')
         self.assertEqual(config.learning_rate, 0.001)
 

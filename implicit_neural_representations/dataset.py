@@ -26,19 +26,25 @@ class SignalData:
     def __post_init__(self):
         if len(self.spatial_shape) != 2 or min(self.spatial_shape) <= 0:
             raise ValueError('spatial_shape must contain positive height and width')
-        if (self.frame_count <= 0 or len(self.value_range) != 2
-                or not all(isfinite(bound) for bound in self.value_range)
-                or self.value_range[0] >= self.value_range[1]):
+        if (
+            self.frame_count <= 0
+            or len(self.value_range) != 2
+            or not all(isfinite(bound) for bound in self.value_range)
+            or self.value_range[0] >= self.value_range[1]
+        ):
             raise ValueError('frame_count and value_range must be valid')
         if self.coordinate_order not in (('y', 'x'), ('t', 'y', 'x')):
             raise ValueError('coordinate_order must be (y, x) or (t, y, x)')
         if self.coordinate_order == ('y', 'x') and self.frame_count != 1:
             raise ValueError('image signals must have one frame')
         expected_count = prod(self.signal_shape)
-        if (self.coords.ndim != 2 or self.pixels.ndim != 2
-                or self.coords.shape != (expected_count, len(self.coordinate_order))
-                or self.pixels.shape[0] != expected_count
-                or self.pixels.shape[1] not in (1, 3)):
+        if (
+            self.coords.ndim != 2
+            or self.pixels.ndim != 2
+            or self.coords.shape != (expected_count, len(self.coordinate_order))
+            or self.pixels.shape[0] != expected_count
+            or self.pixels.shape[1] not in (1, 3)
+        ):
             raise ValueError('coords and pixels must match the declared signal shape')
 
     @property
@@ -67,16 +73,20 @@ def _resized_shape(width: int, height: int, sidelength: int) -> tuple[int, int]:
 def _transform(spatial_shape: tuple[int, int], channels: int):
     if channels not in (1, 3):
         raise ValueError('channels must be 1 or 3')
-    return Compose([
-        Resize(spatial_shape),
-        ToTensor(),
-        Normalize((0.5,) * channels, (0.5,) * channels),
-    ])
+    return Compose(
+        [
+            Resize(spatial_shape),
+            ToTensor(),
+            Normalize((0.5,) * channels, (0.5,) * channels),
+        ]
+    )
 
 
 def _grid(shape: tuple[int, ...]) -> torch.Tensor:
     axes = [torch.linspace(-1, 1, steps=length) for length in shape]
-    return torch.stack(torch.meshgrid(*axes, indexing='ij'), dim=-1).reshape(-1, len(shape))
+    return torch.stack(torch.meshgrid(*axes, indexing='ij'), dim=-1).reshape(
+        -1, len(shape)
+    )
 
 
 def load_image_signal(path: str, sidelength: int, channels: int = 1) -> SignalData:
@@ -89,7 +99,9 @@ def load_image_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
         image_tensor = _transform(spatial_shape, channels)(image)
 
     pixels = image_tensor.permute(1, 2, 0).reshape(-1, channels)
-    return SignalData(_grid(spatial_shape), pixels, spatial_shape, ('y', 'x'), VALUE_RANGE)
+    return SignalData(
+        _grid(spatial_shape), pixels, spatial_shape, ('y', 'x'), VALUE_RANGE
+    )
 
 
 def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalData:
@@ -119,6 +131,10 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
     frame_count = len(frames)
     pixels = torch.cat(frames)
     return SignalData(
-        _grid((frame_count, *spatial_shape)), pixels, spatial_shape,
-        ('t', 'y', 'x'), VALUE_RANGE, frame_count,
+        _grid((frame_count, *spatial_shape)),
+        pixels,
+        spatial_shape,
+        ('t', 'y', 'x'),
+        VALUE_RANGE,
+        frame_count,
     )

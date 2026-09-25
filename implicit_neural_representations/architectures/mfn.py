@@ -1,3 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+"""MFN layers adapted from Fathony et al. (2021).
+
+Adapted for this project in 2026.
+Paper: https://openreview.net/forum?id=OmtmcPkkhT
+Code: https://github.com/boschresearch/multiplicative-filter-networks
+
+The wavelet and normalized variants are local extensions.
+"""
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -5,16 +15,8 @@ from typing import Sequence, Union
 
 
 class MFNBase(nn.Module):
-    """
-    MFNBase: Multiplicative filter network base class.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
+    """Base network combining filter and linear branches multiplicatively."""
 
-    Expects the child class to define the 'filters' attribute, which should be 
-    a nn.ModuleList of n_layers+1 filters with output equal to hidden_size.
-    """
     def __init__(
         self, hidden_size, out_size, n_layers, weight_scale, bias=True, output_act=False
     ):
@@ -47,17 +49,12 @@ class MFNBase(nn.Module):
 
 
 class FourierLayer(nn.Module):
-    """
-    FourierLayer: Sine filter as used in FourierNet.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
+    """Sine filter used by FourierNet."""
+
     def __init__(self, in_features, out_features, weight_scale):
         super().__init__()
         self.linear = nn.Linear(in_features, out_features)
-        self.linear.weight.data *= weight_scale  # gamma
+        self.linear.weight.data *= weight_scale
         self.linear.bias.data.uniform_(-np.pi, np.pi)
         return
 
@@ -66,13 +63,8 @@ class FourierLayer(nn.Module):
 
 
 class FourierNet(MFNBase):
-    """
-    FourierNet: Network using FourierLayer filters.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
+    """MFN with Fourier filters."""
+
     def __init__(
         self,
         in_features,
@@ -89,20 +81,19 @@ class FourierNet(MFNBase):
         )
         self.filters = nn.ModuleList(
             [
-                FourierLayer(in_features, hidden_features, input_scale / np.sqrt(hidden_layers + 1))
+                FourierLayer(
+                    in_features,
+                    hidden_features,
+                    input_scale / np.sqrt(hidden_layers + 1),
+                )
                 for _ in range(hidden_layers + 1)
             ]
         )
 
 
 class GaborLayer(nn.Module):
-    """
-    GaborLayer: Gabor-like filter as used in GaborNet.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
+    """Gabor filter used by GaborNet."""
+
     def __init__(self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0):
         super().__init__()
         self.linear = nn.Linear(in_features, out_features)
@@ -116,21 +107,16 @@ class GaborLayer(nn.Module):
 
     def forward(self, x):
         D = (
-            (x ** 2).sum(-1)[..., None]
-            + (self.mu ** 2).sum(-1)[None, :]
+            (x**2).sum(-1)[..., None]
+            + (self.mu**2).sum(-1)[None, :]
             - 2 * x @ self.mu.T
         )
         return torch.sin(self.linear(x)) * torch.exp(-0.5 * D * self.gamma[None, :])
 
 
 class GaborNet(MFNBase):
-    """
-    GaborNet: Network using GaborLayer filters.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021).
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
+    """MFN with Gabor filters."""
+
     def __init__(
         self,
         in_features,
@@ -162,14 +148,11 @@ class GaborNet(MFNBase):
 
 
 class WaveletLayer(nn.Module):
-    """
-    GaborLayer: Gabor-like filter as used in GaborNet.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021). 
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
-    def __init__(self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0, omega0=5.0):
+    """Wavelet filter with a scalar input frequency."""
+
+    def __init__(
+        self, in_features, out_features, weight_scale, alpha=1.0, beta=1.0, omega0=5.0
+    ):
         super().__init__()
         self.linear = nn.Linear(in_features, out_features)
         self.mu = nn.Parameter(2 * torch.rand(out_features, in_features) - 1)
@@ -183,17 +166,18 @@ class WaveletLayer(nn.Module):
 
     def forward(self, x):
         D = (
-            (x ** 2).sum(-1)[..., None]
-            + (self.mu ** 2).sum(-1)[None, :]
+            (x**2).sum(-1)[..., None]
+            + (self.mu**2).sum(-1)[None, :]
             - 2 * x @ self.mu.T
         )
-        return torch.sin(self.linear(self.omega0 * x)) * torch.exp(-0.5 * D * self.gamma[None, :])
-    
+        return torch.sin(self.linear(self.omega0 * x)) * torch.exp(
+            -0.5 * D * self.gamma[None, :]
+        )
+
 
 class VectorWaveletLayer(nn.Module):
-    """
-    Wavelet filter layer with per-input-dimension omega0.
-    """
+    """Wavelet filter with per-input-dimension frequencies."""
+
     def __init__(
         self,
         in_features: int,
@@ -204,49 +188,39 @@ class VectorWaveletLayer(nn.Module):
         beta: float = 1.0,
     ):
         super().__init__()
-        # linear projection
         self.linear = nn.Linear(in_features, out_features)
-        # random shift parameter mu
         self.mu = nn.Parameter(2 * torch.rand(out_features, in_features) - 1)
-        # envelope width gamma
         self.gamma = nn.Parameter(
             torch.distributions.gamma.Gamma(alpha, beta).sample((out_features,))
         )
-        # per-dim frequency vector
         if isinstance(omega0, (float, int)):
             omega = torch.full((in_features,), float(omega0))
         else:
             omega = torch.as_tensor(list(omega0), dtype=torch.float32)
             if omega.numel() != in_features:
-                raise ValueError(f"omega0 length {omega.numel()} != in_features {in_features}")
+                raise ValueError(
+                    f"omega0 length {omega.numel()} != in_features {in_features}"
+                )
         self.register_buffer('omega0', omega)
 
-        # initialize weights
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma)[:, None]
         self.linear.bias.data.uniform_(-np.pi, np.pi)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (..., in_features)
-        # scale each input dim
         x_scaled = x * self.omega0.view(*((1,) * (x.dim() - 1)), -1)
-        # compute distance for Gaussian envelope
         D = (
-            (x ** 2).sum(-1)[..., None]
-            + (self.mu ** 2).sum(-1)[None, :]
+            (x**2).sum(-1)[..., None]
+            + (self.mu**2).sum(-1)[None, :]
             - 2 * x @ self.mu.T
         )
-        # sinusoidal carrier modulated by envelope
-        return torch.sin(self.linear(x_scaled)) * torch.exp(-0.5 * D * self.gamma[None, :])
+        return torch.sin(self.linear(x_scaled)) * torch.exp(
+            -0.5 * D * self.gamma[None, :]
+        )
 
 
 class WaveletNet(MFNBase):
-    """
-    GaborNet: Network using GaborLayer filters.
-    
-    This is the original implementation from "Multiplicative Filter Networks"
-    by Rizal Fathony, Anit Kumar Sahu, Devin Willmott, and J. Zico Kolter (2021).
-    See: https://github.com/boschresearch/multiplicative-filter-networks/
-    """
+    """MFN with wavelet filters."""
+
     def __init__(
         self,
         in_features,
@@ -272,7 +246,7 @@ class WaveletNet(MFNBase):
                     input_scale / np.sqrt(hidden_layers + 1),
                     alpha / (hidden_layers + 1),
                     beta,
-                    omega0
+                    omega0,
                 )
                 for _ in range(hidden_layers + 1)
             ]
@@ -280,26 +254,8 @@ class WaveletNet(MFNBase):
 
 
 class WaveletNetNormalized(MFNBase):
-    """
-    MFNWaveletNet: A multiplicative filter network using wavelet filters.
-    
-    This network follows the same architectural design as FourierNet and GaborNet,
-    where a ModuleList of filters is applied multiplicatively with intermediate linear
-    transformations. Each filter is a WaveletLayer.
-    
-    Args:
-        in_size (int): Dimensionality of input features.
-        hidden_size (int): Dimensionality of the hidden feature space.
-        out_size (int): Dimensionality of the output.
-        n_layers (int): Number of hidden layers (filters) to use.
-        input_scale (float): Scale factor for the filter initialization.
-        weight_scale (float): Scale factor for linear weight initialization.
-        alpha (float): Parameter for the Gamma distribution (controls envelope width).
-        beta (float): Rate parameter for the Gamma distribution.
-        omega0 (float): Frequency parameter for the Morlet wavelet.
-        bias (bool): Whether to use bias in the linear layers.
-        output_act (bool): Whether to apply sine activation to the output.
-    """
+    """Wavelet MFN with layer normalization before multiplication."""
+
     def __init__(
         self,
         in_features,
@@ -314,7 +270,9 @@ class WaveletNetNormalized(MFNBase):
         bias=True,
         output_act=False,
     ):
-        super().__init__(hidden_features, out_features, hidden_layers, weight_scale, bias, output_act)
+        super().__init__(
+            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
+        )
         self.filters = nn.ModuleList(
             [
                 WaveletLayer(
@@ -328,15 +286,15 @@ class WaveletNetNormalized(MFNBase):
                 for _ in range(hidden_layers + 1)
             ]
         )
-        # Create normalization layers for each branch before multiplication:
-        # One for each filter output (n_layers + 1) and one for each linear branch (n_layers).
-        self.filter_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)])
-        self.linear_norms = nn.ModuleList([nn.LayerNorm(hidden_features) for _ in range(hidden_layers)])
-        
+        self.filter_norms = nn.ModuleList(
+            [nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)]
+        )
+        self.linear_norms = nn.ModuleList(
+            [nn.LayerNorm(hidden_features) for _ in range(hidden_layers)]
+        )
+
     def forward(self, x):
-        # Apply the first filter and normalize its output.
         out = self.filter_norms[0](self.filters[0](x))
-        # For subsequent filters, normalize both the filter and linear branch outputs before multiplying.
         for i in range(1, len(self.filters)):
             filter_out = self.filters[i](x)
             filter_out = self.filter_norms[i](filter_out)
@@ -350,9 +308,8 @@ class WaveletNetNormalized(MFNBase):
 
 
 class VectorWaveletNetNormalized(MFNBase):
-    """
-    Multiplicative Filter Network using vector-omega0 Wavelet filters and layer-norm.
-    """
+    """Normalized wavelet MFN with per-dimension frequencies."""
+
     def __init__(
         self,
         in_features: int,
@@ -367,27 +324,29 @@ class VectorWaveletNetNormalized(MFNBase):
         bias: bool = True,
         output_act: bool = False,
     ):
-        super().__init__(hidden_features, out_features, hidden_layers, weight_scale, bias, output_act)
-        # build filters with per-dim omega0
+        super().__init__(
+            hidden_features, out_features, hidden_layers, weight_scale, bias, output_act
+        )
         layer_scale = input_scale / np.sqrt(hidden_layers + 1)
-        self.filters = nn.ModuleList([
-            VectorWaveletLayer(
-                in_features,
-                hidden_features,
-                layer_scale,
-                omega0,
-                alpha / (hidden_layers + 1),
-                beta,
-            )
-            for _ in range(hidden_layers + 1)
-        ])
-        # layer norms
-        self.filter_norms = nn.ModuleList([
-            nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)
-        ])
-        self.linear_norms = nn.ModuleList([
-            nn.LayerNorm(hidden_features) for _ in range(hidden_layers)
-        ])
+        self.filters = nn.ModuleList(
+            [
+                VectorWaveletLayer(
+                    in_features,
+                    hidden_features,
+                    layer_scale,
+                    omega0,
+                    alpha / (hidden_layers + 1),
+                    beta,
+                )
+                for _ in range(hidden_layers + 1)
+            ]
+        )
+        self.filter_norms = nn.ModuleList(
+            [nn.LayerNorm(hidden_features) for _ in range(hidden_layers + 1)]
+        )
+        self.linear_norms = nn.ModuleList(
+            [nn.LayerNorm(hidden_features) for _ in range(hidden_layers)]
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.filter_norms[0](self.filters[0](x))

@@ -7,7 +7,11 @@ import numpy as np
 import torch
 from PIL import Image
 
-from implicit_neural_representations.dataset import SignalData, load_image_signal, load_video_signal
+from implicit_neural_representations.dataset import (
+    SignalData,
+    load_image_signal,
+    load_video_signal,
+)
 
 
 class FakeReader:
@@ -24,17 +28,23 @@ class FakeReader:
 
 class SignalDataTests(unittest.TestCase):
     def test_image_and_video_share_preprocessing_and_coordinate_order(self):
-        frame = np.array([
-            [[0, 10, 20], [30, 40, 50], [60, 70, 80]],
-            [[90, 100, 110], [120, 130, 140], [210, 220, 230]],
-        ], dtype=np.uint8)
+        frame = np.array(
+            [
+                [[0, 10, 20], [30, 40, 50], [60, 70, 80]],
+                [[90, 100, 110], [120, 130, 140], [210, 220, 230]],
+            ],
+            dtype=np.uint8,
+        )
         with tempfile.TemporaryDirectory() as directory:
             image_path = Path(directory) / 'frame.png'
             Image.fromarray(frame).save(image_path)
             image = load_image_signal(str(image_path), sidelength=6, channels=3)
 
         reader = FakeReader([frame, 255 - frame])
-        with patch('implicit_neural_representations.dataset.imageio.get_reader', return_value=reader):
+        with patch(
+            'implicit_neural_representations.dataset.imageio.get_reader',
+            return_value=reader,
+        ):
             video = load_video_signal('example.mp4', sidelength=6, channels=3)
 
         self.assertEqual(image.spatial_shape, (4, 6))
@@ -62,7 +72,10 @@ class SignalDataTests(unittest.TestCase):
 
     def test_empty_video_closes_reader_and_fails_clearly(self):
         reader = FakeReader([])
-        with patch('implicit_neural_representations.dataset.imageio.get_reader', return_value=reader):
+        with patch(
+            'implicit_neural_representations.dataset.imageio.get_reader',
+            return_value=reader,
+        ):
             with self.assertRaisesRegex(ValueError, 'contains no frames'):
                 load_video_signal('empty.mp4', sidelength=8, channels=1)
         self.assertTrue(reader.closed)
@@ -70,8 +83,11 @@ class SignalDataTests(unittest.TestCase):
     def test_signal_shape_must_match_flattened_tensors(self):
         with self.assertRaisesRegex(ValueError, 'declared signal shape'):
             SignalData(
-                torch.zeros(3, 2), torch.zeros(3, 1),
-                (2, 2), ('y', 'x'), (-1.0, 1.0),
+                torch.zeros(3, 2),
+                torch.zeros(3, 1),
+                (2, 2),
+                ('y', 'x'),
+                (-1.0, 1.0),
             )
 
 

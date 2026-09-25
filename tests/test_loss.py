@@ -32,7 +32,10 @@ class SignalRangeMetricTests(unittest.TestCase):
         writer = Mock()
         with patch('implicit_neural_representations.utils.tqdm.write'):
             log_training_metrics(
-                1, torch.tensor(0.04), datetime.datetime.now(), writer,
+                1,
+                torch.tensor(0.04),
+                datetime.datetime.now(),
+                writer,
                 (-1.0, 1.0),
             )
 

@@ -15,7 +15,6 @@ from .architectures.mlp import MLP
 from .architectures.siren import Siren
 from .architectures.wire import WIRE
 
-
 MODEL_CLASSES = {
     "mlp": MLP,
     "siren": Siren,
