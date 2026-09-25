@@ -62,20 +62,30 @@ class ModelPresetTests(unittest.TestCase):
         self.assertEqual(model.net[0].linear.in_features, 2)
         self.assertEqual(model.net[-1].linear.out_features, 1)
 
-    def test_single_layer_mlp_uses_input_dimension(self):
+    def test_mlp_hidden_layers_are_additional_after_first(self):
         for use_pe in (False, True):
-            with self.subTest(use_pe=use_pe):
-                model = build_model(
-                    "mlp",
-                    in_features=2,
-                    out_features=3,
-                    hidden_layers=1,
-                    hidden_features=8,
-                    use_pe=use_pe,
-                    L=2,
-                )
-                self.assertEqual(model.net[0].in_features, 10 if use_pe else 2)
-                self.assertEqual(model(torch.zeros(2, 2)).shape, (2, 3))
+            for hidden_layers in (0, 2):
+                with self.subTest(use_pe=use_pe, hidden_layers=hidden_layers):
+                    preset = resolve_model_preset(
+                        "mlp",
+                        "image",
+                        3,
+                        overrides={
+                            "hidden_layers": hidden_layers,
+                            "hidden_features": 8,
+                            "use_pe": use_pe,
+                            "L": 2,
+                        },
+                    )
+                    model = build_model("mlp", **preset.kwargs)
+                    linear_layers = [
+                        layer for layer in model.net if isinstance(layer, torch.nn.Linear)
+                    ]
+
+                    self.assertEqual(len(linear_layers), hidden_layers + 2)
+                    self.assertEqual(linear_layers[0].in_features, 10 if use_pe else 2)
+                    self.assertEqual(linear_layers[-1].out_features, 3)
+                    self.assertEqual(model(torch.zeros(2, 2)).shape, (2, 3))
 
     def test_frinr_frequency_and_phase_counts_must_be_positive(self):
         for parameter in ("frequency_num", "phase_num"):

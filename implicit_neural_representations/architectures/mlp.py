@@ -1,13 +1,13 @@
 """Configurable MLP baseline and activation functions."""
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ..encoding import PositionalEncoding
 
 
 class MLP(nn.Module):
-    """MLP with optional positional encoding and selectable hidden activations."""
+    """MLP with one initial and ``hidden_layers`` additional hidden layers."""
 
     def __init__(
         self,
@@ -22,55 +22,52 @@ class MLP(nn.Module):
         **kwargs,
     ) -> None:
         super().__init__()
+        if hidden_layers < 0 or hidden_features <= 0:
+            raise ValueError(
+                "hidden_layers must be non-negative and hidden_features positive"
+            )
         self.use_pe = use_pe
         self.L = L
         self.encoding = PositionalEncoding(in_features, L) if use_pe else nn.Identity()
         effective_n_in = self.encoding.out_dim if use_pe else in_features
 
-        layers = []
-        for i in range(hidden_layers):
-            if i == 0:
-                linear_layer = nn.Linear(effective_n_in, hidden_features)
-            elif i < hidden_layers - 1:
-                linear_layer = nn.Linear(hidden_features, hidden_features)
-
-            if i < hidden_layers - 1:
-                if act == 'relu':
-                    activation = nn.ReLU(inplace=True)
-                elif act == 'gaussian':
-                    activation = GaussianActivation(
-                        a=kwargs.get('a', 1.0), trainable=act_trainable
-                    )
-                elif act == 'quadratic':
-                    activation = QuadraticActivation(
-                        a=kwargs.get('a', 1.0), trainable=act_trainable
-                    )
-                elif act == 'multi-quadratic':
-                    activation = MultiQuadraticActivation(
-                        a=kwargs.get('a', 1.0), trainable=act_trainable
-                    )
-                elif act == 'laplacian':
-                    activation = LaplacianActivation(
-                        a=kwargs.get('a', 1.0), trainable=act_trainable
-                    )
-                elif act == 'super-gaussian':
-                    activation = SuperGaussianActivation(
-                        a=kwargs.get('a', 1.0),
-                        b=kwargs.get('b', 1.0),
-                        trainable=act_trainable,
-                    )
-                elif act == 'expsin':
-                    activation = ExpSinActivation(
-                        a=kwargs.get('a', 1.0), trainable=act_trainable
-                    )
-                else:
-                    raise ValueError(f"Unknown activation type: {act}")
-                layers.extend([linear_layer, activation])
-            else:
-                output_features = (
-                    effective_n_in if hidden_layers == 1 else hidden_features
+        def make_activation() -> nn.Module:
+            if act == 'relu':
+                return nn.ReLU(inplace=True)
+            if act == 'gaussian':
+                return GaussianActivation(
+                    a=kwargs.get('a', 1.0), trainable=act_trainable
                 )
-                layers.extend([nn.Linear(output_features, out_features)])
+            if act == 'quadratic':
+                return QuadraticActivation(
+                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                )
+            if act == 'multi-quadratic':
+                return MultiQuadraticActivation(
+                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                )
+            if act == 'laplacian':
+                return LaplacianActivation(
+                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                )
+            if act == 'super-gaussian':
+                return SuperGaussianActivation(
+                    a=kwargs.get('a', 1.0),
+                    b=kwargs.get('b', 1.0),
+                    trainable=act_trainable,
+                )
+            if act == 'expsin':
+                return ExpSinActivation(
+                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                )
+            raise ValueError(f"Unknown activation type: {act}")
+
+        layers = [nn.Linear(effective_n_in, hidden_features), make_activation()]
+        for _ in range(hidden_layers):
+            layers.extend(
+                [nn.Linear(hidden_features, hidden_features), make_activation()]
+            )
+        layers.append(nn.Linear(hidden_features, out_features))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

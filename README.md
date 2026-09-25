@@ -37,7 +37,9 @@ Architecture implementations live in
 `implicit_neural_representations/presets.py`. Use `model.overrides` to change a
 preset parameter for one run, or set `training.learning_rate` to override its
 default learning rate. The task and color mode determine the input and output
-dimensions. For example, within a complete config:
+dimensions. Across architectures, `hidden_layers` is the number of additional
+hidden layers after the first; zero therefore still creates one hidden layer.
+For example, within a complete config:
 
 ```yaml
 model:
