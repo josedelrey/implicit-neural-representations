@@ -8,10 +8,11 @@ Code: https://github.com/boschresearch/multiplicative-filter-networks
 The wavelet and normalized variants are local extensions.
 """
 
+from typing import Sequence, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Sequence, Union
 
 
 class MFNBase(nn.Module):

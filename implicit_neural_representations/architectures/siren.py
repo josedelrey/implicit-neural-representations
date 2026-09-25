@@ -5,10 +5,11 @@ Paper: https://arxiv.org/abs/2006.09661
 Code: https://github.com/vsitzmann/siren
 """
 
+from collections import OrderedDict
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from collections import OrderedDict
 
 
 class SineLayer(nn.Module):
