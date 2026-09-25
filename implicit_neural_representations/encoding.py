@@ -108,8 +108,3 @@ class GaussianEncoding(nn.Module):
         _check_coordinates(coords, self.in_features)
         projection = (2 * math.pi * coords) @ self.B_gauss.T
         return torch.cat((torch.sin(projection), torch.cos(projection)), dim=-1)
-
-
-def positional_encoding(coords: torch.Tensor, num_frequencies: int) -> torch.Tensor:
-    """Functional form of the unscaled positional encoding."""
-    return PositionalEncoding(coords.shape[-1], num_frequencies)(coords)

@@ -77,16 +77,6 @@ class FinerLayer(nn.Module):
         values = self.linear(inputs)
         return values if self.is_last else finer_activation(values, self.omega)
 
-    def forward_with_intermediates(
-        self, inputs: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor] | torch.Tensor:
-        """Return the pre-activation and output values for inspection."""
-        values = self.linear(inputs)
-        if self.is_last:
-            return values
-        return values, finer_activation(values, self.omega)
-
-
 class Finer(nn.Module):
     """MLP using the sine member of the FINER++ activation family."""
 
@@ -148,16 +138,3 @@ class Finer(nn.Module):
 
     def forward(self, coords: torch.Tensor) -> torch.Tensor:
         return self.net(coords)
-
-    def forward_with_interm(self, inputs: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Return each layer's affine value and output for inspection."""
-        intermediates: dict[str, torch.Tensor] = {}
-        for index, layer in enumerate(self.net):
-            result = layer.forward_with_intermediates(inputs)
-            if isinstance(result, tuple):
-                affine, inputs = result
-                intermediates[f"layer_{index}_affine"] = affine
-            else:
-                inputs = result
-            intermediates[f"layer_{index}_out"] = inputs
-        return intermediates
