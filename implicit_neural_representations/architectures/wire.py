@@ -13,35 +13,6 @@ import torch.nn as nn
 from ..encoding import PositionalEncoding
 
 
-class RealGaborLayer(nn.Module):
-    """Real Gabor activation layer."""
-
-    def __init__(
-        self,
-        in_features,
-        out_features,
-        bias=True,
-        is_first=False,
-        omega0=10.0,
-        sigma0=10.0,
-    ):
-        super().__init__()
-        self.omega_0 = omega0
-        self.scale_0 = sigma0
-        self.is_first = is_first
-
-        self.in_features = in_features
-
-        self.freqs = nn.Linear(in_features, out_features, bias=bias)
-        self.scale = nn.Linear(in_features, out_features, bias=bias)
-
-    def forward(self, input):
-        omega = self.omega_0 * self.freqs(input)
-        scale = self.scale(input) * self.scale_0
-
-        return torch.cos(omega) * torch.exp(-(scale**2))
-
-
 class ComplexGaborLayer(nn.Module):
     """Complex Gabor activation layer."""
 
