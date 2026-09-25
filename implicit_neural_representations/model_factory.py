@@ -48,6 +48,8 @@ def validate_model_kwargs(model_type: str, kwargs: dict) -> None:
             raise ValueError(
                 f"omega0 length {len(omega0)} != in_features {in_features}"
             )
+    elif model_type == "frinr":
+        FRINR.validate_mode(kwargs["mode"])
 
 
 def build_model(model_type: str, *, in_features: int, out_features: int, **kwargs):

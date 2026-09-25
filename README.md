@@ -83,4 +83,4 @@ locally and do not reproduce either full method.
 Project-authored code and the MFN adaptation are covered by
 [AGPL-3.0-only](LICENSE). Copyright (c) 2026 José del Rey for project-authored
 code. The SIREN and WIRE implementations retain their upstream MIT notices in
-[LICENSE-SIREN-MIT](LICENSE-SIREN-MIT) and [LICENSE-WIRE-MIT](LICENSE-WIRE-MIT).
+the third-party notices section of [LICENSE](LICENSE).

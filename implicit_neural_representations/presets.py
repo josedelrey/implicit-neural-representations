@@ -240,15 +240,6 @@ def _validate_override(model_type: str, key: str, value, default) -> None:
         raise ValueError(f"{label} is not a supported activation")
     if key == "init_method" and value not in {"sine", "pytorch"}:
         raise ValueError(f"{label} is not a supported initialization method")
-    if key == "mode" and value not in {
-        "relu",
-        "relu+fr",
-        "relu+pe",
-        "relu+pe+fr",
-        "sin",
-        "sin+fr",
-    }:
-        raise ValueError(f"{label} is not a supported FRINR mode")
 
 
 def resolve_model_preset(
