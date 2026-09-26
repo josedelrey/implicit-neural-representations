@@ -67,6 +67,36 @@ class ExperimentConfigTests(unittest.TestCase):
             config = load_experiment_config(str(path), "image")
         self.assertEqual(config.learning_rate, 0.001)
 
+    def test_finer_bias_scales_accept_zero_null_and_positive_values(self):
+        for task in ("image", "video"):
+            for key in ("fbs", "hbs"):
+                for value in (0, 0.0, None, 0.5):
+                    with self.subTest(task=task, key=key, value=value):
+                        document = self._image_document()
+                        document["model"] = {"name": "finer", "overrides": {key: value}}
+                        if task == "video":
+                            document["training"]["batch_size"] = 8
+                        config = self._load_document(document, task)
+                        self.assertEqual(config.model_kwargs[key], value)
+
+    def test_finer_bias_scales_reject_invalid_values(self):
+        for key in ("fbs", "hbs"):
+            for value in (
+                -1,
+                float("nan"),
+                float("inf"),
+                -float("inf"),
+                True,
+                "0",
+                [],
+                {},
+            ):
+                with self.subTest(key=key, value=value):
+                    document = self._image_document()
+                    document["model"] = {"name": "finer", "overrides": {key: value}}
+                    with self.assertRaisesRegex(ConfigError, f"model.overrides.{key}"):
+                        self._load_document(document)
+
     def test_unknown_and_misspelled_fields_are_rejected(self):
         document = self._image_document()
         document["training"]["totl_steps"] = document["training"].pop("total_steps")
