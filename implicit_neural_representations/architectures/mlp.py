@@ -139,7 +139,7 @@ class SuperGaussianActivation(nn.Module):
         )
 
     def forward(self, x):
-        return torch.exp(-(x**2) / (2 * self.a**2)) ** self.b
+        return torch.exp(-self.b * x**2 / (2 * self.a**2))
 
 
 class ExpSinActivation(nn.Module):

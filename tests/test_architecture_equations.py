@@ -10,6 +10,7 @@ from implicit_neural_representations.architectures.mfn import (
     VectorWaveletLayer,
     WaveletLayer,
 )
+from implicit_neural_representations.architectures.mlp import SuperGaussianActivation
 from implicit_neural_representations.architectures.siren import SineLayer, Siren
 from implicit_neural_representations.architectures.wire import WIRE, ComplexGaborLayer
 from implicit_neural_representations.encoding import (
@@ -19,6 +20,21 @@ from implicit_neural_representations.encoding import (
 
 
 class ArchitectureEquationTests(unittest.TestCase):
+    def test_super_gaussian_fractional_power_has_finite_gradients_under_underflow(self):
+        activation = SuperGaussianActivation(a=0.1, b=0.5, trainable=True)
+        inputs = torch.tensor([-2.0, -0.1, 0.0, 0.1, 2.0], requires_grad=True)
+
+        outputs = activation(inputs)
+        outputs.sum().backward()
+
+        expected = torch.tensor(
+            [math.exp(-(value**2) / (2 * 0.1**2)) ** 0.5 for value in inputs.tolist()]
+        )
+        torch.testing.assert_close(outputs.detach(), expected)
+        for gradient in (inputs.grad, activation.a.grad, activation.b.grad):
+            self.assertIsNotNone(gradient)
+            self.assertTrue(torch.isfinite(gradient).all())
+
     def test_sine_layer_matches_activation_and_initialization_equations(self):
         layer = SineLayer(2, 2, omega_0=2.5).double()
         with torch.no_grad():
