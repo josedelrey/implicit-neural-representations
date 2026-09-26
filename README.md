@@ -192,8 +192,8 @@ The locally implemented coordinate encodings draw on
 [NeRF](https://arxiv.org/abs/2003.08934)
 ([code](https://github.com/bmild/nerf)) and
 [Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains](https://arxiv.org/abs/2006.10739)
-([code](https://github.com/tancik/fourier-feature-networks)). They implement the
-encodings, not the complete methods.
+([code](https://github.com/tancik/fourier-feature-networks)). Their scope is limited
+to the encodings described in these papers.
 
 ## License
 
