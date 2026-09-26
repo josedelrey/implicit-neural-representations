@@ -47,9 +47,12 @@ Use Python 3.10–3.13 and [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/josedelrey/implicit-neural-representations.git
 cd implicit-neural-representations
 uv sync --locked
+source .venv/bin/activate
 ```
 
 This creates a local `.venv` and installs the dependencies recorded in `uv.lock`.
+Activate the environment with `source .venv/bin/activate` in each new shell
+before running the commands below.
 The experiment scripts use CUDA when PyTorch can access it and otherwise run on
 CPU.
 
@@ -59,14 +62,15 @@ Set the input path in [`configs/image.yaml`](configs/image.yaml) or
 [`configs/video.yaml`](configs/video.yaml), then run from the repository root:
 
 ```bash
-uv run --locked inr-image --config configs/image.yaml
-uv run --locked inr-video --config configs/video.yaml
+inr-image --config configs/image.yaml
+inr-video --config configs/video.yaml
 ```
 
-Input media are not included. The bundled configurations point to
-`examples/test.jpg` and `videos/akiyo_cif.y4m`, which you can replace with your own
-paths. Each command fits one signal from scratch and saves its reconstruction,
-configuration, metrics, and checkpoint.
+The bundled configurations point to the example image at `examples/image.jpg`
+and a user-provided video at `examples/video.mp4`. Supply your own video at that
+path or change the input path in `configs/video.yaml`. You can also change the
+image input path to use your own image. Each command fits one signal from scratch
+and saves its reconstruction, configuration, metrics, and checkpoint.
 
 ## Configuration
 
@@ -74,7 +78,7 @@ A complete image experiment looks like this:
 
 ```yaml
 data:
-  path: examples/test.jpg
+  path: examples/image.jpg
   sidelength: 256
   is_rgb: true
 
@@ -158,7 +162,7 @@ video. Infinite PSNR from an exact fit is stored as the string `"Infinity"`.
 Inspect the training logs with:
 
 ```bash
-uv run tensorboard --logdir outputs
+tensorboard --logdir outputs
 ```
 
 ## Development and verification
@@ -167,9 +171,10 @@ Run the same checks as CI:
 
 ```bash
 uv sync --locked
-uv run ruff check .
-uv run ruff format --check .
-uv run python -m unittest discover
+source .venv/bin/activate
+ruff check .
+ruff format --check .
+python -m unittest discover
 ```
 
 The tests cover architecture equations and initialization, output shapes and
@@ -181,8 +186,8 @@ test also runs locally when a GPU is available to PyTorch.
 To apply safe lint fixes and format the code:
 
 ```bash
-uv run ruff check --fix .
-uv run ruff format .
+ruff check --fix .
+ruff format .
 ```
 
 ## References and implementation sources
@@ -218,6 +223,6 @@ encodings, not the complete methods.
 ## License
 
 Project-authored code and the MFN adaptation are covered by
-[AGPL-3.0-only](LICENSE). Copyright © 2026 José del Rey for project-authored code.
+[AGPL-3.0-only](LICENSE).
 The SIREN and WIRE implementations retain their upstream MIT notices in the
 third-party notices section of the license file.

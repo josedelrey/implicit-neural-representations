@@ -1,5 +1,5 @@
 data:
-  path: videos/akiyo_cif.y4m
+  path: examples/video.mp4
   sidelength: 256
   is_rgb: true
 

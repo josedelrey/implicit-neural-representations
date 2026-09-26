@@ -15,7 +15,8 @@ dist/
 htmlcov/
 
 # Generated outputs
-/examples/
+/examples/*
+!/examples/image.jpg
 /videos/
 /logs/
 /runs/
