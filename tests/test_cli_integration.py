@@ -214,6 +214,36 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
             self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.gif")
 
+    def test_video_entry_point_exports_decodable_mp4_with_odd_dimensions(self):
+        first = np.arange(10 * 16 * 3, dtype=np.uint8).reshape(10, 16, 3)
+        frames = np.stack((first, 255 - first))
+        for is_rgb in (True, False):
+            with (
+                self.subTest(is_rgb=is_rgb),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                run_directory = Path(directory)
+                source_path = run_directory / "source.mp4"
+                artifact_directory = run_directory / "nested" / "video"
+                output_path = artifact_directory / "reconstruction.mp4"
+                imageio.mimwrite(source_path, frames, fps=2, macro_block_size=1)
+                config = self._config(
+                    source_path, artifact_directory, "reconstruction.mp4", task="video"
+                )
+                config["data"].update(sidelength=8, is_rgb=is_rgb)
+
+                completed = self._run_cli("inr-video", run_directory, config)
+
+                self.assertGreater(output_path.stat().st_size, 0)
+                with imageio.get_reader(output_path) as reconstruction:
+                    metadata = reconstruction.get_meta_data()
+                    decoded = list(reconstruction.iter_data())
+                self.assertEqual(len(decoded), 2)
+                self.assertTrue(all(frame.shape == (6, 8, 3) for frame in decoded))
+                self.assertAlmostEqual(metadata["fps"], 2)
+                self.assertIn("Reconstructed video saved to:", completed.stdout)
+                self._assert_run_artifacts(artifact_directory, "video")
+
 
 if __name__ == "__main__":
     unittest.main()

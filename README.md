@@ -33,8 +33,8 @@ Architecture code lives in
 Image and video defaults are defined in
 [`presets.py`](implicit_neural_representations/presets.py).
 
-These presets are starting points for experiments, not a parameter-matched
-benchmark or a reproduction of the papers' reported results. Equal hidden width
+These presets support exploratory experiments, with parameter counts and results
+that may differ from those reported in the papers. Equal hidden width
 does not imply equal parameter count, particularly for WIRE's complex parameters
 and FR-INR's reparameterized layers.
 
@@ -61,8 +61,8 @@ inr-image --config configs/image.yaml
 inr-video --config configs/video.yaml
 ```
 
-An example image is included at `examples/image.jpg`; supply your own video at
-`examples/video.mp4` or update the video input path.
+An example image is included at `examples/image.jpg`. To use a video, place your
+own at `examples/video.mp4` or update the video input path.
 
 ## Configuration
 
@@ -102,8 +102,8 @@ each step. Video training samples random batches of coordinates. Both evaluate
 the final reconstruction in chunks controlled by `output.chunk_size`.
 
 Paths are relative to the working directory. `output.reconstruction` must be a
-relative path inside `output.directory`. Choose a new run directory for each
-experiment; existing directories are rejected.
+relative path inside `output.directory`. Each experiment requires a new run
+directory because existing directories are rejected.
 
 ### Experimental conventions
 
@@ -119,8 +119,9 @@ experiment; existing directories are rejected.
 - Video metrics include both PSNR from the full-video MSE and the mean of the
   individual frame PSNR values. These are different quantities.
 - Saved reconstructions are mapped to `[0, 1]` and clipped. Video export retains
-  the source frame rate. All video frames and coordinates are loaded into CPU
-  memory.
+  the source frame rate. FFmpeg exports pad odd dimensions by one pixel at the
+  bottom or right edge for codec compatibility. All video frames and coordinates
+  are loaded into CPU memory.
 - The seed controls initialization and sampling. It does not guarantee
   identical results across devices or PyTorch versions.
 

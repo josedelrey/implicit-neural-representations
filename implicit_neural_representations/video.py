@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import imageio
 import numpy as np
@@ -9,6 +10,34 @@ from .dataset import load_video_signal
 from .experiment import open_experiment
 from .loss import mse_to_psnr
 from .training import fit, predict_chunks
+
+
+def save_video(path: Path, frames: np.ndarray, frame_rate: float) -> None:
+    """Encode a reconstruction and check that the resulting video is readable."""
+    writer_options = {"fps": frame_rate}
+    ffmpeg_extensions = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
+    uses_ffmpeg = path.suffix.lower() in ffmpeg_extensions
+    if uses_ffmpeg:
+        height, width = frames.shape[1:3]
+        padding = [(0, 0), (0, height % 2), (0, width % 2)]
+        if frames.ndim == 4:
+            padding.append((0, 0))
+        if height % 2 or width % 2:
+            frames = np.pad(frames, padding, mode="edge")
+        writer_options["macro_block_size"] = 1
+    imageio.mimwrite(path, frames, **writer_options)
+
+    if not path.is_file() or path.stat().st_size == 0:
+        raise RuntimeError(f"Video export produced no data: {path}")
+    try:
+        with imageio.get_reader(path) as reader:
+            first_frame = reader.get_data(0)
+            if uses_ffmpeg:
+                reader.get_data(len(frames) - 1)
+    except (OSError, ValueError, RuntimeError, IndexError) as exc:
+        raise RuntimeError(f"Exported video cannot be decoded: {path}") from exc
+    if first_frame.shape[:2] != frames.shape[1:3]:
+        raise RuntimeError(f"Exported video dimensions do not match: {path}")
 
 
 def main():
@@ -65,11 +94,7 @@ def main():
         if config.channels == 1:
             frames = frames[..., 0]
 
-        writer_options = {"fps": signal.frame_rate}
-        ffmpeg_extensions = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
-        if run.reconstruction_path.suffix.lower() in ffmpeg_extensions:
-            writer_options["macro_block_size"] = 1
-        imageio.mimwrite(run.reconstruction_path, frames, **writer_options)
+        save_video(run.reconstruction_path, frames, signal.frame_rate)
 
         save_metrics(run.run_directory, metrics)
         save_checkpoint(
