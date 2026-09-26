@@ -186,17 +186,12 @@ def _validate_override(model_type: str, key: str, value, default) -> None:
                 f"{label} must be a positive number or list of positive numbers"
             )
         return
-    if default is None:
+    if model_type == "finer" and key in ("fbs", "hbs"):
         if value is None:
             return
-        if (
-            key in ("fbs", "hbs")
-            and type(value) in (int, float)
-            and isfinite(value)
-            and value >= 0
-        ):
+        if type(value) in (int, float) and isfinite(value) and value >= 0:
             return
-        raise ValueError(f"{label} has an invalid type or value")
+        raise ValueError(f"{label} must be a finite, non-negative number or null")
     if type(default) is bool:
         valid = type(value) is bool
     elif key in (
