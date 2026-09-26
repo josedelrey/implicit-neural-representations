@@ -14,6 +14,9 @@ alongside local wavelet variants of multiplicative filter networks. Model
 definitions, training, and data handling are kept separate so that changes to an
 architecture can be studied within the same experimental setup.
 
+| ![](assets/fouriernet_1.png) | ![](assets/fouriernet_2.png) | ![](assets/fouriernet_3.png) |
+| --- | --- | --- |
+
 ## Models
 
 | Model name | Architecture |
