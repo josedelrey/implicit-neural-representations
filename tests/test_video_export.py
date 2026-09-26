@@ -6,10 +6,50 @@ from unittest.mock import patch
 import imageio
 import numpy as np
 
+from implicit_neural_representations.dataset import load_video_signal
 from implicit_neural_representations.video import save_video
 
 
 class VideoExportTests(unittest.TestCase):
+    def test_webm_and_m4v_exports_decode_and_can_be_loaded_as_signals(self):
+        for extension, codec in (("webm", "vp9"), ("m4v", "h264")):
+            for channels in (1, 3):
+                with (
+                    self.subTest(extension=extension, channels=channels),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    frames = np.stack(
+                        [
+                            np.full((5, 7, channels), value, dtype=np.uint8)
+                            for value in (32, 128, 224)
+                        ]
+                    )
+                    if channels == 1:
+                        frames = frames[..., 0]
+                    path = Path(directory) / f"reconstruction.{extension}"
+
+                    save_video(path, frames, 2)
+
+                    format_hint = ".mp4" if extension == "m4v" else None
+                    with imageio.get_reader(path, format=format_hint) as reader:
+                        metadata = reader.get_meta_data()
+                        decoded = list(reader.iter_data())
+                    self.assertGreater(path.stat().st_size, 0)
+                    self.assertEqual(metadata["codec"], codec)
+                    self.assertAlmostEqual(metadata["fps"], 2)
+                    self.assertEqual(len(decoded), len(frames))
+                    self.assertTrue(all(frame.shape == (6, 8, 3) for frame in decoded))
+                    for frame, value in zip(decoded, (32, 128, 224)):
+                        np.testing.assert_allclose(frame, value, atol=3)
+
+                    signal = load_video_signal(
+                        str(path), sidelength=8, channels=channels
+                    )
+                    self.assertEqual(signal.frame_count, len(frames))
+                    self.assertEqual(signal.spatial_shape, (6, 8))
+                    self.assertEqual(signal.channels, channels)
+                    self.assertAlmostEqual(signal.frame_rate, 2)
+
     def test_mp4_padding_preserves_pixels_and_even_dimensions(self):
         for height, width in ((5, 8), (8, 5), (5, 5), (6, 8)):
             with (

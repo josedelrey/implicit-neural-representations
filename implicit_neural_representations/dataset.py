@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from math import isfinite, prod
+from pathlib import Path
 
 import imageio
 import torch
@@ -119,7 +120,8 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
     if sidelength <= 0:
         raise ValueError("sidelength must be positive")
 
-    reader = imageio.get_reader(path)
+    format_hint = ".mp4" if Path(path).suffix.lower() == ".m4v" else None
+    reader = imageio.get_reader(path, format=format_hint)
     frames = []
     spatial_shape = None
     transform = None
