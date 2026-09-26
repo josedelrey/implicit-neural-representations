@@ -35,8 +35,6 @@ class MFNBase(nn.Module):
                 np.sqrt(weight_scale / hidden_size),
             )
 
-        return
-
     def forward(self, x):
         out = self.filters[0](x)
         for i in range(1, len(self.filters)):
@@ -57,7 +55,6 @@ class FourierLayer(nn.Module):
         self.linear = nn.Linear(in_features, out_features)
         self.linear.weight.data *= weight_scale
         self.linear.bias.data.uniform_(-np.pi, np.pi)
-        return
 
     def forward(self, x):
         return torch.sin(self.linear(x))
@@ -104,7 +101,6 @@ class GaborLayer(nn.Module):
         )
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
         self.linear.bias.data.uniform_(-np.pi, np.pi)
-        return
 
     def forward(self, x):
         D = (
@@ -163,7 +159,6 @@ class WaveletLayer(nn.Module):
         self.omega0 = omega0
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma[:, None])
         self.linear.bias.data.uniform_(-np.pi, np.pi)
-        return
 
     def forward(self, x):
         D = (

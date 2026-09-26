@@ -16,7 +16,9 @@ def save_video(path: Path, frames: np.ndarray, frame_rate: float) -> None:
     """Encode a reconstruction and check that the resulting video is readable."""
     writer_options = {"fps": frame_rate}
     ffmpeg_extensions = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
-    uses_ffmpeg = path.suffix.lower() in ffmpeg_extensions
+    extension = path.suffix.lower()
+    uses_ffmpeg = extension in ffmpeg_extensions
+    format_hint = ".mp4" if extension == ".m4v" else None
     if uses_ffmpeg:
         height, width = frames.shape[1:3]
         padding = [(0, 0), (0, height % 2), (0, width % 2)]
@@ -25,12 +27,18 @@ def save_video(path: Path, frames: np.ndarray, frame_rate: float) -> None:
         if height % 2 or width % 2:
             frames = np.pad(frames, padding, mode="edge")
         writer_options["macro_block_size"] = 1
+        writer_options["format"] = format_hint or "FFMPEG"
+        writer_options["codec"] = "libvpx-vp9" if extension == ".webm" else "libx264"
+        if extension == ".webm":
+            writer_options["output_params"] = ["-crf", "32", "-b:v", "0"]
+        elif extension == ".m4v":
+            writer_options["output_params"] = ["-f", "mp4"]
     imageio.mimwrite(path, frames, **writer_options)
 
     if not path.is_file() or path.stat().st_size == 0:
         raise RuntimeError(f"Video export produced no data: {path}")
     try:
-        with imageio.get_reader(path) as reader:
+        with imageio.get_reader(path, format=format_hint) as reader:
             first_frame = reader.get_data(0)
             if uses_ffmpeg:
                 reader.get_data(len(frames) - 1)
