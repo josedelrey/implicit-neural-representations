@@ -202,7 +202,7 @@ class VectorWaveletLayer(nn.Module):
                 raise ValueError(
                     f"omega0 length {omega.numel()} != in_features {in_features}"
                 )
-        self.register_buffer('omega0', omega)
+        self.register_buffer("omega0", omega)
 
         self.linear.weight.data *= weight_scale * torch.sqrt(self.gamma)[:, None]
         self.linear.bias.data.uniform_(-np.pi, np.pi)

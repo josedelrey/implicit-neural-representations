@@ -7,7 +7,7 @@ import torch
 
 from .utils import log_training_metrics
 
-Sampling = Literal['full', 'random']
+Sampling = Literal["full", "random"]
 
 
 def _model_device(model: torch.nn.Module, fallback: torch.device) -> torch.device:
@@ -33,33 +33,33 @@ def fit(
 ) -> None:
     """Run exactly ``total_steps`` optimizer updates on full or sampled coordinates."""
     if total_steps < 0:
-        raise ValueError('total_steps must be non-negative')
+        raise ValueError("total_steps must be non-negative")
     if log_interval <= 0:
-        raise ValueError('log_interval must be positive')
+        raise ValueError("log_interval must be positive")
     if coords.ndim != 2 or pixels.ndim != 2 or coords.shape[0] != pixels.shape[0]:
-        raise ValueError('coords and pixels must have matching [N, features] shapes')
+        raise ValueError("coords and pixels must have matching [N, features] shapes")
     if coords.shape[0] == 0:
-        raise ValueError('coords and pixels must not be empty')
+        raise ValueError("coords and pixels must not be empty")
     if coords.device != pixels.device:
-        raise ValueError('coords and pixels must be on the same device')
-    if sampling == 'random':
+        raise ValueError("coords and pixels must be on the same device")
+    if sampling == "random":
         if batch_size is None or batch_size <= 0:
-            raise ValueError('random sampling requires a positive batch_size')
-    elif sampling == 'full':
+            raise ValueError("random sampling requires a positive batch_size")
+    elif sampling == "full":
         if batch_size is not None:
-            raise ValueError('full sampling does not use batch_size')
+            raise ValueError("full sampling does not use batch_size")
     else:
-        raise ValueError(f'Unknown sampling mode: {sampling!r}')
+        raise ValueError(f"Unknown sampling mode: {sampling!r}")
 
     device = _model_device(model, coords.device)
-    if sampling == 'full':
+    if sampling == "full":
         full_coords = coords.to(device)
         full_pixels = pixels.to(device)
 
     model.train()
     start_time = datetime.datetime.now()
     for step in range(1, total_steps + 1):
-        if sampling == 'random':
+        if sampling == "random":
             indices = torch.randint(
                 0, coords.shape[0], (batch_size,), device=coords.device
             )
@@ -72,7 +72,7 @@ def fit(
         predictions = model(batch_coords)
         if predictions.shape != batch_pixels.shape:
             raise ValueError(
-                'model predictions and target pixels must have the same shape'
+                "model predictions and target pixels must have the same shape"
             )
         loss = ((predictions - batch_pixels) ** 2).mean()
         loss.backward()
@@ -87,9 +87,9 @@ def predict_chunks(
 ) -> torch.Tensor:
     """Evaluate coordinates in order and return their predictions on the CPU."""
     if chunk_size <= 0:
-        raise ValueError('chunk_size must be positive')
+        raise ValueError("chunk_size must be positive")
     if coords.ndim != 2 or coords.shape[0] == 0:
-        raise ValueError('coords must be a non-empty [N, features] tensor')
+        raise ValueError("coords must be a non-empty [N, features] tensor")
 
     device = _model_device(model, coords.device)
     model.eval()

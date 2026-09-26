@@ -13,7 +13,7 @@ from torch import nn
 
 def _check_coordinates(coords: torch.Tensor, in_features: int) -> None:
     if coords.ndim < 1 or coords.shape[-1] != in_features:
-        raise ValueError(f'Expected coordinates with last dimension {in_features}')
+        raise ValueError(f"Expected coordinates with last dimension {in_features}")
 
 
 class PositionalEncoding(nn.Module):
@@ -23,7 +23,7 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         if in_features <= 0 or num_frequencies < 0:
             raise ValueError(
-                'in_features must be positive and num_frequencies non-negative'
+                "in_features must be positive and num_frequencies non-negative"
             )
         self.in_features = in_features
         self.num_frequencies = num_frequencies
@@ -49,7 +49,7 @@ class FrequencyEncoding(nn.Module):
     ):
         super().__init__()
         if in_features <= 0:
-            raise ValueError('in_features must be positive')
+            raise ValueError("in_features must be positive")
         self.in_features = in_features
         if in_features == 3:
             # Preserve the existing three-dimensional NeRF convention.
@@ -57,7 +57,7 @@ class FrequencyEncoding(nn.Module):
         elif use_nyquist and in_features in (1, 2):
             if mapping_input is None:
                 raise ValueError(
-                    'mapping_input is required when using Nyquist frequencies'
+                    "mapping_input is required when using Nyquist frequencies"
                 )
             if isinstance(mapping_input, int):
                 samples = mapping_input
@@ -69,10 +69,10 @@ class FrequencyEncoding(nn.Module):
                 samples = min(mapping_input)
             else:
                 raise ValueError(
-                    'mapping_input must be a positive sample count or sequence'
+                    "mapping_input must be a positive sample count or sequence"
                 )
             if samples <= 0:
-                raise ValueError('mapping_input must contain positive sample counts')
+                raise ValueError("mapping_input must contain positive sample counts")
             self.num_frequencies = max(0, math.floor(math.log2(samples / 4)))
         else:
             self.num_frequencies = 4
@@ -96,12 +96,12 @@ class GaussianEncoding(nn.Module):
         super().__init__()
         if in_features <= 0 or mapping_input <= 0 or scale_B < 0:
             raise ValueError(
-                'in_features and mapping_input must be positive; scale_B non-negative'
+                "in_features and mapping_input must be positive; scale_B non-negative"
             )
         self.in_features = in_features
         self.out_dim = 2 * mapping_input
         self.register_buffer(
-            'B_gauss', torch.randn(mapping_input, in_features) * scale_B
+            "B_gauss", torch.randn(mapping_input, in_features) * scale_B
         )
 
     def forward(self, coords: torch.Tensor) -> torch.Tensor:

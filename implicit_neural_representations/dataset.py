@@ -25,26 +25,26 @@ class SignalData:
 
     def __post_init__(self):
         if len(self.spatial_shape) != 2 or min(self.spatial_shape) <= 0:
-            raise ValueError('spatial_shape must contain positive height and width')
+            raise ValueError("spatial_shape must contain positive height and width")
         if (
             self.frame_count <= 0
             or len(self.value_range) != 2
             or not all(isfinite(bound) for bound in self.value_range)
             or self.value_range[0] >= self.value_range[1]
         ):
-            raise ValueError('frame_count and value_range must be valid')
-        if self.coordinate_order not in (('y', 'x'), ('t', 'y', 'x')):
-            raise ValueError('coordinate_order must be (y, x) or (t, y, x)')
-        if self.coordinate_order == ('y', 'x') and self.frame_count != 1:
-            raise ValueError('image signals must have one frame')
-        if self.coordinate_order == ('y', 'x') and self.frame_rate is not None:
-            raise ValueError('image signals must not have a frame rate')
-        if self.coordinate_order[0] == 't' and (
+            raise ValueError("frame_count and value_range must be valid")
+        if self.coordinate_order not in (("y", "x"), ("t", "y", "x")):
+            raise ValueError("coordinate_order must be (y, x) or (t, y, x)")
+        if self.coordinate_order == ("y", "x") and self.frame_count != 1:
+            raise ValueError("image signals must have one frame")
+        if self.coordinate_order == ("y", "x") and self.frame_rate is not None:
+            raise ValueError("image signals must not have a frame rate")
+        if self.coordinate_order[0] == "t" and (
             self.frame_rate is None
             or not isfinite(self.frame_rate)
             or self.frame_rate <= 0
         ):
-            raise ValueError('video signals must have a positive frame rate')
+            raise ValueError("video signals must have a positive frame rate")
         expected_count = prod(self.signal_shape)
         if (
             self.coords.ndim != 2
@@ -53,11 +53,11 @@ class SignalData:
             or self.pixels.shape[0] != expected_count
             or self.pixels.shape[1] not in (1, 3)
         ):
-            raise ValueError('coords and pixels must match the declared signal shape')
+            raise ValueError("coords and pixels must match the declared signal shape")
 
     @property
     def signal_shape(self) -> tuple[int, ...]:
-        if self.coordinate_order[0] == 't':
+        if self.coordinate_order[0] == "t":
             return (self.frame_count, *self.spatial_shape)
         return self.spatial_shape
 
@@ -73,14 +73,14 @@ class SignalData:
 
 def _resized_shape(width: int, height: int, sidelength: int) -> tuple[int, int]:
     if sidelength <= 0:
-        raise ValueError('sidelength must be positive')
+        raise ValueError("sidelength must be positive")
     scale = sidelength / max(width, height)
     return max(1, int(height * scale)), max(1, int(width * scale))
 
 
 def _transform(spatial_shape: tuple[int, int], channels: int):
     if channels not in (1, 3):
-        raise ValueError('channels must be 1 or 3')
+        raise ValueError("channels must be 1 or 3")
     return Compose(
         [
             Resize(spatial_shape),
@@ -92,7 +92,7 @@ def _transform(spatial_shape: tuple[int, int], channels: int):
 
 def _grid(shape: tuple[int, ...]) -> torch.Tensor:
     axes = [torch.linspace(-1, 1, steps=length) for length in shape]
-    return torch.stack(torch.meshgrid(*axes, indexing='ij'), dim=-1).reshape(
+    return torch.stack(torch.meshgrid(*axes, indexing="ij"), dim=-1).reshape(
         -1, len(shape)
     )
 
@@ -100,24 +100,24 @@ def _grid(shape: tuple[int, ...]) -> torch.Tensor:
 def load_image_signal(path: str, sidelength: int, channels: int = 1) -> SignalData:
     """Load one image with row-major (y, x) coordinates."""
     if channels not in (1, 3):
-        raise ValueError('channels must be 1 or 3')
+        raise ValueError("channels must be 1 or 3")
     with Image.open(path) as source:
-        image = source.convert('RGB' if channels == 3 else 'L')
+        image = source.convert("RGB" if channels == 3 else "L")
         spatial_shape = _resized_shape(*image.size, sidelength)
         image_tensor = _transform(spatial_shape, channels)(image)
 
     pixels = image_tensor.permute(1, 2, 0).reshape(-1, channels)
     return SignalData(
-        _grid(spatial_shape), pixels, spatial_shape, ('y', 'x'), VALUE_RANGE
+        _grid(spatial_shape), pixels, spatial_shape, ("y", "x"), VALUE_RANGE
     )
 
 
 def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalData:
     """Load frames into CPU memory with row-major (t, y, x) coordinates."""
     if channels not in (1, 3):
-        raise ValueError('channels must be 1 or 3')
+        raise ValueError("channels must be 1 or 3")
     if sidelength <= 0:
-        raise ValueError('sidelength must be positive')
+        raise ValueError("sidelength must be positive")
 
     reader = imageio.get_reader(path)
     frames = []
@@ -125,9 +125,9 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
     transform = None
     frame_rate = None
     try:
-        frame_rate = reader.get_meta_data().get('fps')
+        frame_rate = reader.get_meta_data().get("fps")
         for frame in reader:
-            image = Image.fromarray(frame).convert('RGB' if channels == 3 else 'L')
+            image = Image.fromarray(frame).convert("RGB" if channels == 3 else "L")
             if transform is None:
                 spatial_shape = _resized_shape(*image.size, sidelength)
                 transform = _transform(spatial_shape, channels)
@@ -136,7 +136,7 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
         reader.close()
 
     if not frames:
-        raise ValueError(f'Video contains no frames: {path}')
+        raise ValueError(f"Video contains no frames: {path}")
 
     frame_count = len(frames)
     pixels = torch.cat(frames)
@@ -144,7 +144,7 @@ def load_video_signal(path: str, sidelength: int, channels: int = 1) -> SignalDa
         _grid((frame_count, *spatial_shape)),
         pixels,
         spatial_shape,
-        ('t', 'y', 'x'),
+        ("t", "y", "x"),
         VALUE_RANGE,
         frame_count=frame_count,
         frame_rate=frame_rate,

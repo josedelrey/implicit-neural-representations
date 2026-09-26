@@ -77,6 +77,7 @@ class FinerLayer(nn.Module):
         values = self.linear(inputs)
         return values if self.is_last else finer_activation(values, self.omega)
 
+
 class Finer(nn.Module):
     """MLP using the sine member of the FINER++ activation family."""
 

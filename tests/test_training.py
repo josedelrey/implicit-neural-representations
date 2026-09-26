@@ -31,9 +31,9 @@ class TrainingTests(unittest.TestCase):
     def test_full_sampling_runs_exact_number_of_updates(self):
         with (
             patch(
-                'implicit_neural_representations.training.log_training_metrics'
+                "implicit_neural_representations.training.log_training_metrics"
             ) as log,
-            patch.object(self.optimizer, 'step', wraps=self.optimizer.step) as step,
+            patch.object(self.optimizer, "step", wraps=self.optimizer.step) as step,
         ):
             fit(
                 self.model,
@@ -44,7 +44,7 @@ class TrainingTests(unittest.TestCase):
                 log_interval=2,
                 writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='full',
+                sampling="full",
             )
 
         self.assertEqual(step.call_count, 3)
@@ -57,9 +57,9 @@ class TrainingTests(unittest.TestCase):
     def test_random_sampling_uses_requested_batch_size(self):
         with (
             patch(
-                'implicit_neural_representations.training.log_training_metrics'
+                "implicit_neural_representations.training.log_training_metrics"
             ) as log,
-            patch.object(self.optimizer, 'step', wraps=self.optimizer.step) as step,
+            patch.object(self.optimizer, "step", wraps=self.optimizer.step) as step,
         ):
             fit(
                 self.model,
@@ -70,7 +70,7 @@ class TrainingTests(unittest.TestCase):
                 log_interval=3,
                 writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='random',
+                sampling="random",
                 batch_size=2,
             )
 
@@ -85,10 +85,10 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual(self.model.batch_sizes, [2, 2, 1])
         self.assertEqual(self.model.grad_enabled, [False, False, False])
         self.assertFalse(self.model.training)
-        self.assertEqual(predictions.device.type, 'cpu')
+        self.assertEqual(predictions.device.type, "cpu")
 
     def test_invalid_sampling_configuration_fails_before_training(self):
-        with self.assertRaisesRegex(ValueError, 'positive batch_size'):
+        with self.assertRaisesRegex(ValueError, "positive batch_size"):
             fit(
                 self.model,
                 self.coords,
@@ -98,15 +98,15 @@ class TrainingTests(unittest.TestCase):
                 log_interval=1,
                 writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='random',
+                sampling="random",
             )
         self.assertEqual(self.model.batch_sizes, [])
 
-    @unittest.skipUnless(torch.cuda.is_available(), 'CUDA is unavailable')
+    @unittest.skipUnless(torch.cuda.is_available(), "CUDA is unavailable")
     def test_random_sampling_and_prediction_transfer_only_batches(self):
-        self.model.to('cuda')
+        self.model.to("cuda")
         optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
-        with patch('implicit_neural_representations.training.log_training_metrics'):
+        with patch("implicit_neural_representations.training.log_training_metrics"):
             fit(
                 self.model,
                 self.coords,
@@ -116,17 +116,17 @@ class TrainingTests(unittest.TestCase):
                 log_interval=1,
                 writer=None,
                 value_range=(-1.0, 1.0),
-                sampling='random',
+                sampling="random",
                 batch_size=2,
             )
         predictions = predict_chunks(self.model, self.coords, chunk_size=2)
 
-        self.assertEqual(self.coords.device.type, 'cpu')
-        self.assertEqual(self.pixels.device.type, 'cpu')
+        self.assertEqual(self.coords.device.type, "cpu")
+        self.assertEqual(self.pixels.device.type, "cpu")
         self.assertEqual(self.model.batch_sizes, [2, 2, 2, 2, 1])
-        self.assertEqual(self.model.input_devices, ['cuda'] * 5)
-        self.assertEqual(predictions.device.type, 'cpu')
+        self.assertEqual(self.model.input_devices, ["cuda"] * 5)
+        self.assertEqual(predictions.device.type, "cpu")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

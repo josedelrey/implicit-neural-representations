@@ -166,12 +166,8 @@ class CliIntegrationTests(unittest.TestCase):
                 artifact_directory, "image"
             )
             self.assertEqual(tensorboard_resolved, resolved)
-            self.assertEqual(
-                resolved["output"]["directory"], str(artifact_directory)
-            )
-            self.assertEqual(
-                resolved["output"]["reconstruction"], "reconstruction.png"
-            )
+            self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
+            self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.png")
 
     def test_video_entry_point_writes_reconstruction_and_run_data(self):
         first = np.arange(4 * 4 * 3, dtype=np.uint8).reshape(4, 4, 3) * 5
@@ -209,20 +205,14 @@ class CliIntegrationTests(unittest.TestCase):
             )
             self.assertTrue(math.isfinite(reported_psnr))
             self.assertIn("Run artifacts saved to:", completed.stdout)
-            resolved, metrics = self._assert_run_artifacts(
-                artifact_directory, "video"
-            )
+            resolved, metrics = self._assert_run_artifacts(artifact_directory, "video")
             self.assertTrue(math.isfinite(metrics["mean_frame_psnr"]))
             tensorboard_resolved = self._assert_tensorboard_output(
                 artifact_directory, "video"
             )
             self.assertEqual(tensorboard_resolved, resolved)
-            self.assertEqual(
-                resolved["output"]["directory"], str(artifact_directory)
-            )
-            self.assertEqual(
-                resolved["output"]["reconstruction"], "reconstruction.gif"
-            )
+            self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
+            self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.gif")
 
 
 if __name__ == "__main__":

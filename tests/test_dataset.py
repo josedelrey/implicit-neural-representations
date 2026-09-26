@@ -24,7 +24,7 @@ class FakeReader:
         return iter(self.frames)
 
     def get_meta_data(self):
-        return {'fps': self.frame_rate}
+        return {"fps": self.frame_rate}
 
     def close(self):
         self.closed = True
@@ -40,23 +40,23 @@ class SignalDataTests(unittest.TestCase):
             dtype=np.uint8,
         )
         with tempfile.TemporaryDirectory() as directory:
-            image_path = Path(directory) / 'frame.png'
+            image_path = Path(directory) / "frame.png"
             Image.fromarray(frame).save(image_path)
             image = load_image_signal(str(image_path), sidelength=6, channels=3)
 
         reader = FakeReader([frame, 255 - frame])
         with patch(
-            'implicit_neural_representations.dataset.imageio.get_reader',
+            "implicit_neural_representations.dataset.imageio.get_reader",
             return_value=reader,
         ):
-            video = load_video_signal('example.mp4', sidelength=6, channels=3)
+            video = load_video_signal("example.mp4", sidelength=6, channels=3)
 
         self.assertEqual(image.spatial_shape, (4, 6))
         self.assertEqual(image.signal_shape, (4, 6))
-        self.assertEqual(image.coordinate_order, ('y', 'x'))
+        self.assertEqual(image.coordinate_order, ("y", "x"))
         self.assertEqual(video.signal_shape, (2, 4, 6))
         self.assertEqual(video.frame_rate, 25.0)
-        self.assertEqual(video.coordinate_order, ('t', 'y', 'x'))
+        self.assertEqual(video.coordinate_order, ("t", "y", "x"))
         self.assertEqual(image.value_range, (-1.0, 1.0))
         self.assertEqual(video.value_range, image.value_range)
         np.testing.assert_allclose(
@@ -67,8 +67,8 @@ class SignalDataTests(unittest.TestCase):
         self.assertEqual(video.coords.shape, (48, 3))
         self.assertEqual(image.pixels.shape, (24, 3))
         self.assertEqual(video.pixels.shape, (48, 3))
-        self.assertEqual(image.coords.device.type, 'cpu')
-        self.assertEqual(video.pixels.device.type, 'cpu')
+        self.assertEqual(image.coords.device.type, "cpu")
+        self.assertEqual(video.pixels.device.type, "cpu")
         torch.testing.assert_close(video.coords[:24, 1:], image.coords)
         torch.testing.assert_close(video.pixels[:24], image.pixels)
         torch.testing.assert_close(video.coords[0], torch.tensor([-1.0, -1.0, -1.0]))
@@ -77,23 +77,26 @@ class SignalDataTests(unittest.TestCase):
 
     def test_empty_video_closes_reader_and_fails_clearly(self):
         reader = FakeReader([])
-        with patch(
-            'implicit_neural_representations.dataset.imageio.get_reader',
-            return_value=reader,
-        ), self.assertRaisesRegex(ValueError, 'contains no frames'):
-            load_video_signal('empty.mp4', sidelength=8, channels=1)
+        with (
+            patch(
+                "implicit_neural_representations.dataset.imageio.get_reader",
+                return_value=reader,
+            ),
+            self.assertRaisesRegex(ValueError, "contains no frames"),
+        ):
+            load_video_signal("empty.mp4", sidelength=8, channels=1)
         self.assertTrue(reader.closed)
 
     def test_signal_shape_must_match_flattened_tensors(self):
-        with self.assertRaisesRegex(ValueError, 'declared signal shape'):
+        with self.assertRaisesRegex(ValueError, "declared signal shape"):
             SignalData(
                 torch.zeros(3, 2),
                 torch.zeros(3, 1),
                 (2, 2),
-                ('y', 'x'),
+                ("y", "x"),
                 (-1.0, 1.0),
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
