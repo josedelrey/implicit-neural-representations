@@ -77,7 +77,7 @@ class WIRE(nn.Module):
 
         self.nonlin = ComplexGaborLayer
         self.complex = True
-        self.wavelet = 'gabor'
+        self.wavelet = "gabor"
 
         layers = OrderedDict()
         layers["layer0"] = self.nonlin(
@@ -108,6 +108,6 @@ class WIRE(nn.Module):
     def forward(self, coords):
         coords = self.encoding(coords)
         output = self.net(coords)
-        if self.wavelet == 'gabor':
+        if self.wavelet == "gabor":
             return output.real
         return output

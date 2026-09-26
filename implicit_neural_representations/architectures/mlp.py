@@ -15,7 +15,7 @@ class MLP(nn.Module):
         out_features: int = 3,
         hidden_layers: int = 4,
         hidden_features: int = 256,
-        act: str = 'relu',
+        act: str = "relu",
         act_trainable: bool = False,
         use_pe: bool = False,
         L: int = 6,
@@ -32,34 +32,32 @@ class MLP(nn.Module):
         effective_n_in = self.encoding.out_dim if use_pe else in_features
 
         def make_activation() -> nn.Module:
-            if act == 'relu':
+            if act == "relu":
                 return nn.ReLU(inplace=True)
-            if act == 'gaussian':
+            if act == "gaussian":
                 return GaussianActivation(
-                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                    a=kwargs.get("a", 1.0), trainable=act_trainable
                 )
-            if act == 'quadratic':
+            if act == "quadratic":
                 return QuadraticActivation(
-                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                    a=kwargs.get("a", 1.0), trainable=act_trainable
                 )
-            if act == 'multi-quadratic':
+            if act == "multi-quadratic":
                 return MultiQuadraticActivation(
-                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                    a=kwargs.get("a", 1.0), trainable=act_trainable
                 )
-            if act == 'laplacian':
+            if act == "laplacian":
                 return LaplacianActivation(
-                    a=kwargs.get('a', 1.0), trainable=act_trainable
+                    a=kwargs.get("a", 1.0), trainable=act_trainable
                 )
-            if act == 'super-gaussian':
+            if act == "super-gaussian":
                 return SuperGaussianActivation(
-                    a=kwargs.get('a', 1.0),
-                    b=kwargs.get('b', 1.0),
+                    a=kwargs.get("a", 1.0),
+                    b=kwargs.get("b", 1.0),
                     trainable=act_trainable,
                 )
-            if act == 'expsin':
-                return ExpSinActivation(
-                    a=kwargs.get('a', 1.0), trainable=act_trainable
-                )
+            if act == "expsin":
+                return ExpSinActivation(a=kwargs.get("a", 1.0), trainable=act_trainable)
             raise ValueError(f"Unknown activation type: {act}")
 
         layers = [nn.Linear(effective_n_in, hidden_features), make_activation()]
@@ -82,7 +80,7 @@ class GaussianActivation(nn.Module):
     def __init__(self, a=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):
@@ -95,7 +93,7 @@ class QuadraticActivation(nn.Module):
     def __init__(self, a=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):
@@ -108,7 +106,7 @@ class MultiQuadraticActivation(nn.Module):
     def __init__(self, a=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):
@@ -121,7 +119,7 @@ class LaplacianActivation(nn.Module):
     def __init__(self, a=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):
@@ -134,10 +132,10 @@ class SuperGaussianActivation(nn.Module):
     def __init__(self, a=1.0, b=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
         self.register_parameter(
-            'b', nn.Parameter(b * torch.ones(1), requires_grad=trainable)
+            "b", nn.Parameter(b * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):
@@ -150,7 +148,7 @@ class ExpSinActivation(nn.Module):
     def __init__(self, a=1.0, trainable=True):
         super().__init__()
         self.register_parameter(
-            'a', nn.Parameter(a * torch.ones(1), requires_grad=trainable)
+            "a", nn.Parameter(a * torch.ones(1), requires_grad=trainable)
         )
 
     def forward(self, x):

@@ -64,9 +64,13 @@ class ModelContractTests(unittest.TestCase):
                             if parameter.requires_grad
                         ]
                         self.assertTrue(gradients)
-                        self.assertTrue(all(gradient is not None for gradient in gradients))
                         self.assertTrue(
-                            all(torch.isfinite(gradient).all() for gradient in gradients)
+                            all(gradient is not None for gradient in gradients)
+                        )
+                        self.assertTrue(
+                            all(
+                                torch.isfinite(gradient).all() for gradient in gradients
+                            )
                         )
 
                         checkpoint = io.BytesIO()
@@ -74,7 +78,9 @@ class ModelContractTests(unittest.TestCase):
                         checkpoint.seek(0)
                         restored = build_model(model_type, **kwargs)
                         restored.load_state_dict(
-                            torch.load(checkpoint, map_location="cpu", weights_only=True)
+                            torch.load(
+                                checkpoint, map_location="cpu", weights_only=True
+                            )
                         )
                         with torch.no_grad():
                             torch.testing.assert_close(
@@ -85,9 +91,7 @@ class ModelContractTests(unittest.TestCase):
         for model_type in sorted(MODEL_CLASSES):
             default_depth = BASE_PRESETS[model_type].kwargs["hidden_layers"]
             for hidden_layers in (0, default_depth):
-                with self.subTest(
-                    model_type=model_type, hidden_layers=hidden_layers
-                ):
+                with self.subTest(model_type=model_type, hidden_layers=hidden_layers):
                     model, _ = _small_model(
                         model_type,
                         "image",

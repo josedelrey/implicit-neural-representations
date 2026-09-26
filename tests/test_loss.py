@@ -23,14 +23,14 @@ class SignalRangeMetricTests(unittest.TestCase):
         self.assertEqual(mse_to_psnr(0.0, (-1.0, 1.0)), math.inf)
 
     def test_invalid_range_and_error_are_rejected(self):
-        with self.assertRaisesRegex(ValueError, 'value_range'):
+        with self.assertRaisesRegex(ValueError, "value_range"):
             mse_to_psnr(0.1, (1.0, -1.0))
-        with self.assertRaisesRegex(ValueError, 'non-negative'):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
             mse_to_psnr(-0.1, (-1.0, 1.0))
 
     def test_training_log_uses_signal_range(self):
         writer = Mock()
-        with patch('implicit_neural_representations.utils.tqdm.write'):
+        with patch("implicit_neural_representations.utils.tqdm.write"):
             log_training_metrics(
                 1,
                 torch.tensor(0.04),
@@ -40,10 +40,10 @@ class SignalRangeMetricTests(unittest.TestCase):
             )
 
         psnr_call = writer.add_scalar.call_args_list[1]
-        self.assertEqual(psnr_call.args[0], 'psnr')
+        self.assertEqual(psnr_call.args[0], "psnr")
         self.assertAlmostEqual(psnr_call.args[1], 20.0, places=6)
         self.assertEqual(psnr_call.args[2], 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -14,11 +14,11 @@ def initialize_run(run_directory: str, resolved_config: dict) -> Path:
         directory.mkdir(parents=True, exist_ok=False)
     except FileExistsError as exc:
         raise FileExistsError(
-            f'Run directory already exists; choose a new directory: {directory}'
+            f"Run directory already exists; choose a new directory: {directory}"
         ) from exc
-    (directory / 'resolved_config.json').write_text(
-        json.dumps(resolved_config, indent=2, sort_keys=True, allow_nan=False) + '\n',
-        encoding='utf-8',
+    (directory / "resolved_config.json").write_text(
+        json.dumps(resolved_config, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
     )
     return directory
 
@@ -35,27 +35,28 @@ def save_checkpoint(
     """Save the trained model and optimizer state."""
     torch.save(
         {
-            'completed_steps': completed_steps,
-            'model_type': model_type,
-            'model_kwargs': model_kwargs,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
+            "completed_steps": completed_steps,
+            "model_type": model_type,
+            "model_kwargs": model_kwargs,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
         },
-        run_directory / 'checkpoint.pt',
+        run_directory / "checkpoint.pt",
     )
 
 
 def save_metrics(run_directory: Path, metrics: dict[str, float]) -> None:
     """Save final scalar metrics as standards-compliant JSON."""
     if any(math.isnan(value) for value in metrics.values()):
-        raise ValueError('metrics must not contain NaN values')
+        raise ValueError("metrics must not contain NaN values")
     serialized_metrics = {}
     for name, value in metrics.items():
         if math.isinf(value):
-            serialized_metrics[name] = 'Infinity' if value > 0 else '-Infinity'
+            serialized_metrics[name] = "Infinity" if value > 0 else "-Infinity"
         else:
             serialized_metrics[name] = value
-    (run_directory / 'metrics.json').write_text(
-        json.dumps(serialized_metrics, indent=2, sort_keys=True, allow_nan=False) + '\n',
-        encoding='utf-8',
+    (run_directory / "metrics.json").write_text(
+        json.dumps(serialized_metrics, indent=2, sort_keys=True, allow_nan=False)
+        + "\n",
+        encoding="utf-8",
     )

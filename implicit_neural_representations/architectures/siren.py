@@ -104,14 +104,14 @@ class Siren(nn.Module):
 
         activation_count = 0
         x = coords
-        activations['input'] = x
+        activations["input"] = x
         for i, layer in enumerate(self.net):
             if isinstance(layer, SineLayer):
                 x, intermed = layer.forward_with_intermediate(x)
                 if retain_grad:
                     x.retain_grad()
                     intermed.retain_grad()
-                activations['_'.join((str(layer.__class__), f"{activation_count}"))] = (
+                activations["_".join((str(layer.__class__), f"{activation_count}"))] = (
                     intermed
                 )
                 activation_count += 1
@@ -119,7 +119,7 @@ class Siren(nn.Module):
                 x = layer(x)
                 if retain_grad:
                     x.retain_grad()
-            activations['_'.join((str(layer.__class__), f"{activation_count}"))] = x
+            activations["_".join((str(layer.__class__), f"{activation_count}"))] = x
             activation_count += 1
 
         return activations

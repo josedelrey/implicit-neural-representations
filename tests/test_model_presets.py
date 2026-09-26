@@ -79,7 +79,9 @@ class ModelPresetTests(unittest.TestCase):
                     )
                     model = build_model("mlp", **preset.kwargs)
                     linear_layers = [
-                        layer for layer in model.net if isinstance(layer, torch.nn.Linear)
+                        layer
+                        for layer in model.net
+                        if isinstance(layer, torch.nn.Linear)
                     ]
 
                     self.assertEqual(len(linear_layers), hidden_layers + 2)
@@ -97,9 +99,7 @@ class ModelPresetTests(unittest.TestCase):
 
     def test_frinr_rejects_unsupported_mode_combinations(self):
         with self.assertRaisesRegex(ValueError, "Unsupported FR-INR mode"):
-            resolve_model_preset(
-                "frinr", "image", 3, overrides={"mode": "sin+pe"}
-            )
+            resolve_model_preset("frinr", "image", 3, overrides={"mode": "sin+pe"})
         with self.assertRaisesRegex(ValueError, "Unknown model override"):
             resolve_model_preset("frinr", "image", 3, overrides={"pe": True})
 

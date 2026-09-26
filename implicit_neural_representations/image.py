@@ -20,7 +20,7 @@ def main():
         "--config", type=str, required=True, help="Path to the experiment YAML file"
     )
     args = parser.parse_args()
-    config = load_experiment_config(args.config, task='image')
+    config = load_experiment_config(args.config, task="image")
 
     signal = load_image_signal(config.data_path, config.sidelength, config.channels)
     height, width = signal.spatial_shape
@@ -35,15 +35,13 @@ def main():
             log_interval=config.log_interval,
             writer=run.writer,
             value_range=signal.value_range,
-            sampling='full',
+            sampling="full",
         )
 
-        preds_all = predict_chunks(
-            run.model, signal.coords, config.chunk_size
-        ).numpy()
+        preds_all = predict_chunks(run.model, signal.coords, config.chunk_size).numpy()
         targets = signal.pixels.numpy()
         mse = float(np.mean((preds_all - targets) ** 2))
-        metrics = {'mse': mse, 'psnr': mse_to_psnr(mse, signal.value_range)}
+        metrics = {"mse": mse, "psnr": mse_to_psnr(mse, signal.value_range)}
 
         image = (
             preds_all.reshape(height, width, config.channels)
@@ -54,7 +52,7 @@ def main():
         plt.imsave(
             run.reconstruction_path,
             image,
-            cmap=None if config.channels == 3 else 'gray',
+            cmap=None if config.channels == 3 else "gray",
         )
 
         save_metrics(run.run_directory, metrics)
@@ -71,5 +69,5 @@ def main():
     print(f"Run artifacts saved to: {run.run_directory}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

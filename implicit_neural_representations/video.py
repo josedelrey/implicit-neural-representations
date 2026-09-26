@@ -19,7 +19,7 @@ def main():
         "--config", type=str, required=True, help="Path to the experiment YAML file"
     )
     args = parser.parse_args()
-    config = load_experiment_config(args.config, task='video')
+    config = load_experiment_config(args.config, task="video")
 
     signal = load_video_signal(config.data_path, config.sidelength, config.channels)
     height, width = signal.spatial_shape
@@ -35,13 +35,11 @@ def main():
             log_interval=config.log_interval,
             writer=run.writer,
             value_range=signal.value_range,
-            sampling='random',
+            sampling="random",
             batch_size=config.batch_size,
         )
 
-        preds_all = predict_chunks(
-            run.model, signal.coords, config.chunk_size
-        ).numpy()
+        preds_all = predict_chunks(run.model, signal.coords, config.chunk_size).numpy()
 
         video_pred = preds_all.reshape(num_frames, height, width, config.channels)
         video_truth = signal.pixels.numpy().reshape(
@@ -57,9 +55,9 @@ def main():
         ]
         avg_psnr = float(np.mean(psnr_vals))
         metrics = {
-            'mse': mse,
-            'psnr': mse_to_psnr(mse, signal.value_range),
-            'mean_frame_psnr': avg_psnr,
+            "mse": mse,
+            "psnr": mse_to_psnr(mse, signal.value_range),
+            "mean_frame_psnr": avg_psnr,
         }
 
         reconstructed = np.clip(signal.to_unit_range(video_pred), 0, 1)
@@ -67,10 +65,10 @@ def main():
         if config.channels == 1:
             frames = frames[..., 0]
 
-        writer_options = {'fps': signal.frame_rate}
-        ffmpeg_extensions = {'.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm'}
+        writer_options = {"fps": signal.frame_rate}
+        ffmpeg_extensions = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
         if run.reconstruction_path.suffix.lower() in ffmpeg_extensions:
-            writer_options['macro_block_size'] = 1
+            writer_options["macro_block_size"] = 1
         imageio.mimwrite(run.reconstruction_path, frames, **writer_options)
 
         save_metrics(run.run_directory, metrics)
@@ -88,5 +86,5 @@ def main():
     print(f"Run artifacts saved to: {run.run_directory}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
