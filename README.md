@@ -5,14 +5,10 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.2%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-22A559)](LICENSE)
 
-Experiments with coordinate-based neural networks for representing images and
-videos. Each network is fitted to a single signal, learning a map from spatial
-or spatiotemporal coordinates to pixel values.
-
-The repository brings several INR architectures into a shared fitting workflow,
-alongside local wavelet variants of multiplicative filter networks. Model
-definitions, training, and data handling are kept separate so that changes to an
-architecture can be studied within the same experimental setup.
+Experiments with implicit neural representations for images and videos. Each
+network is fitted to a single signal, mapping spatial or spatiotemporal
+coordinates to pixel values. Implemented models include established INR
+architectures and local wavelet variants of multiplicative filter networks.
 
 | ![](assets/fouriernet_1.png) | ![](assets/fouriernet_2.png) | ![](assets/fouriernet_3.png) |
 | --- | --- | --- |
@@ -53,11 +49,7 @@ uv sync --locked
 source .venv/bin/activate
 ```
 
-This creates a local `.venv` and installs the dependencies recorded in `uv.lock`.
-Activate the environment with `source .venv/bin/activate` in each new shell
-before running the commands below.
-The experiment scripts use CUDA when PyTorch can access it and otherwise run on
-CPU.
+Experiments use CUDA when available and otherwise run on CPU.
 
 ## Run an experiment
 
@@ -69,11 +61,8 @@ inr-image --config configs/image.yaml
 inr-video --config configs/video.yaml
 ```
 
-The bundled configurations point to the example image at `examples/image.jpg`
-and a user-provided video at `examples/video.mp4`. Supply your own video at that
-path or change the input path in `configs/video.yaml`. You can also change the
-image input path to use your own image. Each command fits one signal from scratch
-and saves its reconstruction, configuration, metrics, and checkpoint.
+An example image is included at `examples/image.jpg`; supply your own video at
+`examples/video.mp4` or update the video input path.
 
 ## Configuration
 
@@ -105,8 +94,7 @@ output:
 
 `model.overrides` changes individual architecture parameters from the selected
 preset. If `training.learning_rate` is omitted, the preset's learning rate is
-used. The command determines whether the task is image or video, so no `task`
-field is needed.
+used.
 
 For video, use `inr-video`, add `training.batch_size`, and choose a video filename
 for `output.reconstruction`. Image training uses the full coordinate grid at
@@ -115,9 +103,7 @@ the final reconstruction in chunks controlled by `output.chunk_size`.
 
 Paths are relative to the working directory. `output.reconstruction` must be a
 relative path inside `output.directory`. Choose a new run directory for each
-experiment, since an existing directory is rejected to keep results separate.
-Unknown or duplicate configuration keys, invalid values, and unsupported model
-overrides are rejected before input data are loaded.
+experiment; existing directories are rejected.
 
 ### Experimental conventions
 
@@ -156,11 +142,9 @@ outputs/siren-image-01/
 └── tensorboard/
 ```
 
-`resolved_config.json` records the resolved model parameters, learning rate,
-seed, device, paths, and signal range. `checkpoint.pt` stores the model and
-optimizer states, model construction parameters, and completed step count.
-`metrics.json` contains the final MSE and PSNR, with `mean_frame_psnr` added for
-video. Infinite PSNR from an exact fit is stored as the string `"Infinity"`.
+`resolved_config.json` records the experiment settings. `checkpoint.pt` stores
+the model and optimizer states. `metrics.json` contains the final MSE and PSNR,
+with `mean_frame_psnr` added for video.
 
 Inspect the training logs with:
 
@@ -178,19 +162,6 @@ source .venv/bin/activate
 ruff check .
 ruff format --check .
 python -m unittest discover
-```
-
-The tests cover architecture equations and initialization, output shapes and
-gradients, checkpoint round trips, fitting a small deterministic signal,
-configuration validation, and image and video CLI runs with temporary inputs.
-GitHub Actions runs the suite on CPU with Python 3.10–3.13. The CUDA training
-test also runs locally when a GPU is available to PyTorch.
-
-To apply safe lint fixes and format the code:
-
-```bash
-ruff check --fix .
-ruff format .
 ```
 
 ## References and implementation sources
