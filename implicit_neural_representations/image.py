@@ -53,6 +53,8 @@ def main():
             run.reconstruction_path,
             image,
             cmap=None if config.channels == 3 else "gray",
+            vmin=0,
+            vmax=1,
         )
 
         save_metrics(run.run_directory, metrics)

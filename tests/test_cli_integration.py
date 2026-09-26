@@ -6,6 +6,7 @@ import sysconfig
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import imageio
 import numpy as np
@@ -13,6 +14,8 @@ import torch
 import yaml
 from PIL import Image
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+
+from implicit_neural_representations.image import main as image_main
 
 
 class CliIntegrationTests(unittest.TestCase):
@@ -168,6 +171,39 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertEqual(tensorboard_resolved, resolved)
             self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
             self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.png")
+
+    def test_grayscale_export_preserves_contrast_and_constant_intensity(self):
+        for values in ((-0.5, 0.0, 0.0, 0.5), (0.0, 0.0, 0.0, 0.0)):
+            with (
+                self.subTest(values=values),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                run_directory = Path(directory)
+                source_path = run_directory / "source.png"
+                artifact_directory = run_directory / "image"
+                Image.fromarray(np.full((2, 2), 128, dtype=np.uint8)).save(source_path)
+                config = self._config(
+                    source_path, artifact_directory, "reconstruction.png", task="image"
+                )
+                config["data"].update(sidelength=2, is_rgb=False)
+                config["training"]["total_steps"] = 0
+                config_path = run_directory / "experiment.yaml"
+                config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+                predictions = torch.tensor(values).reshape(-1, 1)
+
+                with (
+                    patch("sys.argv", ["inr-image", "--config", str(config_path)]),
+                    patch(
+                        "implicit_neural_representations.image.predict_chunks",
+                        return_value=predictions,
+                    ),
+                ):
+                    image_main()
+
+                with Image.open(artifact_directory / "reconstruction.png") as image:
+                    actual = np.asarray(image.convert("L"))
+                expected = (np.asarray(values).reshape(2, 2) + 1) / 2 * 255
+                np.testing.assert_allclose(actual, expected, atol=1)
 
     def test_video_entry_point_writes_reconstruction_and_run_data(self):
         first = np.arange(4 * 4 * 3, dtype=np.uint8).reshape(4, 4, 3) * 5
