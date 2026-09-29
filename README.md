@@ -38,9 +38,10 @@ that may differ from those reported in the papers. Equal hidden width
 does not imply equal parameter count, particularly for WIRE's complex parameters
 and FR-INR's reparameterized layers.
 
-## Setup
+## Install
 
-Use Python 3.10–3.13 and [uv](https://docs.astral.sh/uv/).
+Supported on Linux with Python 3.10–3.13. Requires [Git](https://git-scm.com/)
+and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/josedelrey/implicit-neural-representations.git
