@@ -1,7 +1,9 @@
 """Coordinate encodings inspired by NeRF and Fourier features.
 
-NeRF: https://arxiv.org/abs/2003.08934; https://github.com/bmild/nerf
-Fourier features: https://arxiv.org/abs/2006.10739; https://github.com/tancik/fourier-feature-networks
+NeRF paper: https://arxiv.org/abs/2003.08934
+NeRF code: https://github.com/bmild/nerf
+Fourier features paper: https://arxiv.org/abs/2006.10739
+Fourier features code: https://github.com/tancik/fourier-feature-networks
 """
 
 import math
