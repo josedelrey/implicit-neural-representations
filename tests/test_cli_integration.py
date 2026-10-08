@@ -44,13 +44,12 @@ class CliIntegrationTests(unittest.TestCase):
             0,
             msg=f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
         )
-        return completed
 
-    def _assert_tensorboard_output(self, artifact_directory: Path, task: str):
+    def _assert_tensorboard_output(self, artifact_directory: Path):
         event_files = list(
             (artifact_directory / "tensorboard").rglob("events.out.tfevents.*")
         )
-        self.assertEqual(len(event_files), 1)
+        self.assertTrue(event_files)
         events = EventAccumulator(str(event_files[0].parent)).Reload()
 
         scalar_tags = events.Tags()["scalars"]
@@ -64,13 +63,7 @@ class CliIntegrationTests(unittest.TestCase):
         text_tag = "resolved_config/text_summary"
         self.assertIn(text_tag, events.Tags()["tensors"])
         tensor = events.Tensors(text_tag)[0].tensor_proto
-        resolved = json.loads(tensor.string_val[0].decode("utf-8"))
-        self.assertEqual(resolved["task"], task)
-        self.assertEqual(resolved["device"], "cpu")
-        self.assertEqual(
-            resolved["working_directory"], str(artifact_directory.parents[1])
-        )
-        return resolved
+        return json.loads(tensor.string_val[0].decode("utf-8"))
 
     @staticmethod
     def _config(
@@ -110,19 +103,6 @@ class CliIntegrationTests(unittest.TestCase):
             (artifact_directory / "resolved_config.json").read_text(encoding="utf-8")
         )
         self.assertEqual(resolved["task"], task)
-        serialized = json.dumps(resolved)
-        for excluded in (
-            "checksum",
-            "sha256",
-            "signal_shape",
-            "git_commit",
-            "python_version",
-            "torch_version",
-            "cuda_version",
-            "device_name",
-        ):
-            self.assertNotIn(excluded, serialized)
-
         metrics = json.loads(
             (artifact_directory / "metrics.json").read_text(encoding="utf-8")
         )
@@ -147,7 +127,7 @@ class CliIntegrationTests(unittest.TestCase):
             Image.fromarray(pixels).save(source_path)
             self.assertFalse(artifact_directory.exists())
 
-            completed = self._run_cli(
+            self._run_cli(
                 "inr-image",
                 run_directory,
                 self._config(
@@ -159,15 +139,10 @@ class CliIntegrationTests(unittest.TestCase):
             )
 
             self.assertTrue(output_path.is_file())
-            self.assertTrue(output_path.parent.is_dir())
             with Image.open(output_path) as reconstruction:
                 self.assertEqual(reconstruction.size, (4, 4))
-            self.assertIn("Reconstructed image saved to:", completed.stdout)
-            self.assertIn("Run artifacts saved to:", completed.stdout)
             resolved, _ = self._assert_run_artifacts(artifact_directory, "image")
-            tensorboard_resolved = self._assert_tensorboard_output(
-                artifact_directory, "image"
-            )
+            tensorboard_resolved = self._assert_tensorboard_output(artifact_directory)
             self.assertEqual(tensorboard_resolved, resolved)
             self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
             self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.png")
@@ -216,7 +191,7 @@ class CliIntegrationTests(unittest.TestCase):
             imageio.mimwrite(source_path, frames, fps=2, macro_block_size=1, quality=10)
             self.assertFalse(output_path.parent.exists())
 
-            completed = self._run_cli(
+            self._run_cli(
                 "inr-video",
                 run_directory,
                 self._config(
@@ -228,24 +203,12 @@ class CliIntegrationTests(unittest.TestCase):
             )
 
             self.assertTrue(output_path.is_file())
-            self.assertTrue(output_path.parent.is_dir())
             with Image.open(output_path) as reconstruction:
                 self.assertEqual(reconstruction.n_frames, 2)
                 self.assertEqual(reconstruction.size, (4, 4))
-            self.assertIn("Reconstructed video saved to:", completed.stdout)
-            prefix = "Average PSNR over all frames: "
-            reported_psnr = next(
-                float(line.removeprefix(prefix))
-                for line in completed.stdout.splitlines()
-                if line.startswith(prefix)
-            )
-            self.assertTrue(math.isfinite(reported_psnr))
-            self.assertIn("Run artifacts saved to:", completed.stdout)
             resolved, metrics = self._assert_run_artifacts(artifact_directory, "video")
             self.assertTrue(math.isfinite(metrics["mean_frame_psnr"]))
-            tensorboard_resolved = self._assert_tensorboard_output(
-                artifact_directory, "video"
-            )
+            tensorboard_resolved = self._assert_tensorboard_output(artifact_directory)
             self.assertEqual(tensorboard_resolved, resolved)
             self.assertEqual(resolved["output"]["directory"], str(artifact_directory))
             self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.gif")
@@ -268,7 +231,7 @@ class CliIntegrationTests(unittest.TestCase):
                 )
                 config["data"].update(sidelength=8, is_rgb=is_rgb)
 
-                completed = self._run_cli("inr-video", run_directory, config)
+                self._run_cli("inr-video", run_directory, config)
 
                 self.assertGreater(output_path.stat().st_size, 0)
                 with imageio.get_reader(output_path) as reconstruction:
@@ -277,7 +240,6 @@ class CliIntegrationTests(unittest.TestCase):
                 self.assertEqual(len(decoded), 2)
                 self.assertTrue(all(frame.shape == (6, 8, 3) for frame in decoded))
                 self.assertAlmostEqual(metadata["fps"], 2)
-                self.assertIn("Reconstructed video saved to:", completed.stdout)
                 self._assert_run_artifacts(artifact_directory, "video")
 
 

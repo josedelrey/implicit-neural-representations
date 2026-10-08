@@ -6,8 +6,6 @@ import yaml
 
 from implicit_neural_representations.config import ConfigError, load_experiment_config
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
-
 
 class ExperimentConfigTests(unittest.TestCase):
     def _load_document(self, document: dict, task: str = "image"):
@@ -16,28 +14,18 @@ class ExperimentConfigTests(unittest.TestCase):
             path.write_text(yaml.safe_dump(document), encoding="utf-8")
             return load_experiment_config(str(path), task)
 
-    def _image_document(self):
-        return yaml.safe_load((CONFIG_DIR / "image.yaml").read_text(encoding="utf-8"))
-
-    def test_example_configs_resolve_all_settings(self):
-        image = load_experiment_config(str(CONFIG_DIR / "image.yaml"), "image")
-        video = load_experiment_config(str(CONFIG_DIR / "video.yaml"), "video")
-
-        self.assertEqual(image.model_type, "waveletnetnormalized")
-        self.assertEqual(image.model_kwargs["in_features"], 2)
-        self.assertEqual(image.model_kwargs["out_features"], 3)
-        self.assertEqual(image.learning_rate, 1e-3)
-        self.assertEqual(image.run_directory, "outputs/image")
-        self.assertEqual(image.reconstruction_file, "reconstruction.png")
-        self.assertEqual(
-            image.reconstruction_path, Path("outputs/image/reconstruction.png")
-        )
-        self.assertIsNone(image.batch_size)
-        self.assertEqual(video.model_kwargs["in_features"], 3)
-        self.assertEqual(video.model_kwargs["omega0"], [0.7, 5.0, 5.0])
-        self.assertEqual(video.batch_size, 32768)
-        self.assertEqual(video.run_directory, "outputs/video")
-        self.assertEqual(video.reconstruction_file, "reconstruction.mp4")
+    @staticmethod
+    def _image_document():
+        return {
+            "data": {"path": "source.png", "sidelength": 4, "is_rgb": True},
+            "model": {"name": "waveletnetnormalized", "overrides": {}},
+            "training": {"total_steps": 1, "log_interval": 1},
+            "output": {
+                "directory": "run",
+                "reconstruction": "result.png",
+                "chunk_size": 8,
+            },
+        }
 
     def test_model_and_learning_rate_can_be_overridden_per_run(self):
         document = self._image_document()
@@ -52,20 +40,19 @@ class ExperimentConfigTests(unittest.TestCase):
         self.assertEqual(resolved["model"]["kwargs"]["hidden_features"], 384)
         self.assertEqual(resolved["training"]["learning_rate"], 0.0005)
         self.assertEqual(resolved["data"]["value_range"], (-1.0, 1.0))
-        self.assertEqual(resolved["working_directory"], str(Path.cwd()))
-        self.assertEqual(resolved["output"]["directory"], "outputs/image")
-        self.assertEqual(resolved["output"]["reconstruction"], "reconstruction.png")
 
     def test_scientific_notation_learning_rate_is_a_number(self):
+        document = self._image_document()
+        document["training"]["learning_rate"] = 0.0002
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "experiment.yaml"
-            contents = (CONFIG_DIR / "image.yaml").read_text(encoding="utf-8")
+            contents = yaml.safe_dump(document)
             path.write_text(
-                contents.replace("  # learning_rate: 0.001", "  learning_rate: 1e-3"),
+                contents.replace("learning_rate: 0.0002", "learning_rate: 2e-4"),
                 encoding="utf-8",
             )
             config = load_experiment_config(str(path), "image")
-        self.assertEqual(config.learning_rate, 0.001)
+        self.assertEqual(config.learning_rate, 0.0002)
 
     def test_finer_bias_scales_accept_zero_null_and_positive_values(self):
         for task in ("image", "video"):

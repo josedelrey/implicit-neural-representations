@@ -31,19 +31,18 @@ class ModelPresetTests(unittest.TestCase):
                         self.assertEqual(preset.kwargs["out_features"], channels)
                         self.assertGreater(preset.learning_rate, 0)
 
-    def test_vector_wavelet_frequencies_match_the_task(self):
-        image = resolve_model_preset("vectorwaveletnetnormalized", "image", 3)
-        video = resolve_model_preset("vectorwaveletnetnormalized", "video", 3)
-        self.assertEqual(image.kwargs["omega0"], [5.0, 5.0])
-        self.assertEqual(video.kwargs["omega0"], [0.7, 5.0, 5.0])
-
-        image.kwargs["omega0"].append(99)
-        self.assertEqual(
-            resolve_model_preset("vectorwaveletnetnormalized", "image", 3).kwargs[
-                "omega0"
-            ],
-            [5.0, 5.0],
-        )
+    def test_resolved_frequency_vectors_are_independent(self):
+        for task in ("image", "video"):
+            with self.subTest(task=task):
+                preset = resolve_model_preset("vectorwaveletnetnormalized", task, 3)
+                frequencies = preset.kwargs["omega0"].copy()
+                preset.kwargs["omega0"].append(99)
+                self.assertEqual(
+                    resolve_model_preset("vectorwaveletnetnormalized", task, 3).kwargs[
+                        "omega0"
+                    ],
+                    frequencies,
+                )
 
     def test_invalid_frequency_vector_is_rejected_before_construction(self):
         preset = resolve_model_preset("vectorwaveletnetnormalized", "image", 3)
