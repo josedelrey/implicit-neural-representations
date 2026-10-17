@@ -10,7 +10,7 @@ network is fitted to a single signal, mapping spatial or spatiotemporal
 coordinates to pixel values. Implemented models include established INR
 architectures and local wavelet variants of multiplicative filter networks.
 
-| ![](assets/fouriernet_1.png) | ![](assets/fouriernet_2.png) | ![](assets/fouriernet_3.png) |
+| <img src="assets/fouriernet_1.png" alt="" align="middle"> | <img src="assets/fouriernet_2.png" alt="" align="middle"> | <img src="assets/fouriernet_3.png" alt="" align="middle"> |
 | --- | --- | --- |
 
 ## Models
