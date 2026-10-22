@@ -6,6 +6,13 @@ build/
 dist/
 .venv/
 
+# Private environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
 # Tool caches
 .coverage
 .coverage.*
@@ -15,4 +22,5 @@ dist/
 htmlcov/
 
 # Generated outputs
-/outputs/
+outputs/
+/local_inputs/
