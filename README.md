@@ -1,7 +1,7 @@
 # Implicit Neural Representations
 
 [![CI](https://github.com/josedelrey/implicit-neural-representations/actions/workflows/ci.yml/badge.svg)](https://github.com/josedelrey/implicit-neural-representations/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.10–3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11–3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.2%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-22A559)](LICENSE)
 
@@ -40,7 +40,7 @@ and FR-INR's reparameterized layers.
 
 ## Install
 
-Supported on Linux with Python 3.10–3.13. Requires [Git](https://git-scm.com/)
+Supported on Linux with Python 3.11–3.13. Requires [Git](https://git-scm.com/)
 and [uv](https://docs.astral.sh/uv/).
 
 ```bash

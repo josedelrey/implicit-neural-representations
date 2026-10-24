@@ -14,13 +14,13 @@ keywords = [
 ]
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "torch>=2.2",
     "torchvision>=0.17",
     "numpy>=1.26",
     "matplotlib>=3.8",
-    "Pillow>=10.0",
+    "Pillow>=13.0.0",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.4.9",
     "tensorboard>=2.16",
@@ -40,8 +40,11 @@ Repository = "https://github.com/josedelrey/implicit-neural-representations"
 Issues = "https://github.com/josedelrey/implicit-neural-representations/issues"
 
 [build-system]
-requires = ["setuptools>=77.0.3"]
+requires = ["setuptools>=84.1.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv]
+constraint-dependencies = ["filelock>=4.2.1", "werkzeug>=3.1.9", "setuptools>=84.1.0"]
 
 [tool.setuptools.packages.find]
 include = ["implicit_neural_representations*"]
